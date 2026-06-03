@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { onSnapshot, query, orderBy, getDocs } from "firebase/firestore";
 import { getCollection, getDocRef } from "./firebase";
-import type { Product, HeroSlide, SiteSettings } from "./types";
+import type { Offer, Product, HeroSlide, SiteSettings } from "./types";
 
 export type { HeroSlide, SiteSettings };
 
@@ -32,6 +32,33 @@ export function useProducts() {
   }, []);
 
   return { products, loading };
+}
+
+export function useOffers() {
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      getCollection("offers"),
+      (snapshot) => {
+        const nextOffers = snapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+        })) as Offer[];
+        setOffers(nextOffers);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching offers:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  return { offers, loading };
 }
 
 // Hook to get hero display slides

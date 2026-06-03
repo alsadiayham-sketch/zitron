@@ -3,16 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot } from "firebase/firestore";
 import { getCollection } from "@/lib/firebase";
+import { isOfferActive } from "@/lib/offers";
 import type { Offer } from "@/lib/types";
 
 const BANNER_HEIGHT = "44px";
-
-function isOfferActive(offer: Offer): boolean {
-  const now = new Date();
-  if (offer.startDate && new Date(offer.startDate) > now) return false;
-  if (offer.endDate && new Date(offer.endDate) < now) return false;
-  return true;
-}
 
 export default function OffersBanner() {
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -82,5 +76,3 @@ export default function OffersBanner() {
     </div>
   );
 }
-
-export { isOfferActive };

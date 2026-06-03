@@ -1,30 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { addDoc, increment, onSnapshot, updateDoc } from "firebase/firestore";
+import { addDoc, increment, updateDoc } from "firebase/firestore";
 import {
   CheckCircle2,
   Copy,
   Gift,
   MapPinned,
-  Minus,
   NotebookPen,
+  Pencil,
   Phone,
-  Plus,
   ShoppingBag,
   Sparkles,
   Truck,
   UserRound,
 } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useCart, type CartItem } from "@/context/CartContext";
+import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import type { SavedLocation } from "@/lib/admin";
+import ComboOfferModal from "@/components/offers/ComboOfferModal";
 import { formatCurrency } from "@/lib/admin";
 import { getCollection, getDocRef } from "@/lib/firebase";
-import type { AppliedOffer, Offer, Product } from "@/lib/types";
+import { useOffers, useProducts } from "@/lib/firebase-hooks";
 import {
   CUSTOMER_ADDRESS_STORAGE_KEY,
   CUSTOMER_CITY_STORAGE_KEY,
@@ -33,6 +31,15 @@ import {
   extractCityFromAddress,
   generateOrderId,
 } from "@/lib/order-utils";
+import {
+  doesOfferQualify,
+  getEligibleProducts,
+  groupComboCartItems,
+  isComboCartItemId,
+  isOfferActive,
+} from "@/lib/offers";
+import type { AppliedOffer, CartItem, Offer } from "@/lib/types";
+import type { SavedLocation } from "@/lib/admin";
 
 type CheckoutFormState = {
   customerName: string;
@@ -42,7 +49,6 @@ type CheckoutFormState = {
   notes: string;
 };
 
-type ComboSelections = Record<string, string[]>;
 type FreeSelections = Record<string, string>;
 
 const initialFormState: CheckoutFormState = {
@@ -57,46 +63,11 @@ function generateLocationId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `location-${Date.now()}`;
 }
 
-function getEligibleProducts(offer: Offer, productMap: Map<string, Product>) {
-  return (offer.eligibleProducts ?? [])
-    .map((productId) => productMap.get(productId))
-    .filter((product): product is Product => Boolean(product));
-}
-
-function getSelectionCount(selectedProductIds: string[], productId: string) {
-  return selectedProductIds.filter((selectedId) => selectedId === productId).length;
-}
-
-function buildComboOrderItems(offer: Offer, selectedProductIds: string[], productMap: Map<string, Product>): CartItem[] {
-  const counts = new Map<string, number>();
-
-  for (const productId of selectedProductIds) {
-    counts.set(productId, (counts.get(productId) ?? 0) + 1);
-  }
-
-  const comboUnitPrice = Number(((offer.comboPrice ?? 0) / Math.max(1, offer.pickCount ?? 1)).toFixed(2));
-
-  return Array.from(counts.entries()).flatMap(([productId, quantity]) => {
-    const product = productMap.get(productId);
-    if (!product) return [];
-
-    return [
-      {
-        id: `${product.id}__combo__${offer.id}`,
-        name: `${product.name} (عرض خاص)`,
-        price: comboUnitPrice,
-        image: product.image,
-        quantity,
-        range: product.range,
-      },
-    ];
-  });
-}
-
 export default function CheckoutPage() {
-  const router = useRouter();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, replaceComboItems } = useCart();
   const { user, profile } = useAuth();
+  const { offers } = useOffers();
+  const { products: offerProducts } = useProducts();
   const [formData, setFormData] = useState<CheckoutFormState>(() => {
     if (typeof window === "undefined") {
       return initialFormState;
@@ -116,11 +87,9 @@ export default function CheckoutPage() {
   const [copied, setCopied] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<"new" | string>("new");
   const [saveNewAddressPreference, setSaveNewAddressPreference] = useState<"yes" | "no" | null>(null);
-  const [activeOffers, setActiveOffers] = useState<Offer[]>([]);
-  const [offerProducts, setOfferProducts] = useState<Product[]>([]);
   const [selectedFreeProducts, setSelectedFreeProducts] = useState<FreeSelections>({});
-  const [comboSelections, setComboSelections] = useState<ComboSelections>({});
-  const [openCombos, setOpenCombos] = useState<Record<string, boolean>>({});
+  const [activeComboOffer, setActiveComboOffer] = useState<Offer | null>(null);
+  const [editingComboSelection, setEditingComboSelection] = useState<string[]>([]);
   const initializedProfile = useRef(false);
 
   const savedLocations = useMemo(() => profile?.locations ?? [], [profile?.locations]);
@@ -150,72 +119,45 @@ export default function CheckoutPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [profile, savedLocations, user]);
 
-  useEffect(() => {
-    const unsubscribeOffers = onSnapshot(getCollection("offers"), (snapshot) => {
-      const now = new Date();
-      const nextOffers = snapshot.docs
-        .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
-        .filter((offer) => {
-          if (offer.startDate && new Date(offer.startDate) > now) return false;
-          if (offer.endDate && new Date(offer.endDate) < now) return false;
-          return true;
-        })
-        .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
-
-      setActiveOffers(nextOffers);
-    });
-
-    const unsubscribeProducts = onSnapshot(getCollection("products"), (snapshot) => {
-      const nextProducts = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<Product, "id">), id: doc.id })) as Product[];
-      setOfferProducts(nextProducts);
-    });
-
-    return () => {
-      unsubscribeOffers();
-      unsubscribeProducts();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!successOrderId) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      router.replace(`/account/orders?orderId=${successOrderId}`);
-    }, 2200);
-
-    return () => window.clearTimeout(timeout);
-  }, [router, successOrderId]);
-
-  const usingSavedLocation = selectedLocationId !== "new";
-  const productMap = useMemo(() => new Map(offerProducts.map((product) => [product.id, product] as const)), [offerProducts]);
-
-  const activeComboOffers = useMemo(
-    () => activeOffers.filter((offer) => offer.type === "combo" && (offer.eligibleProducts?.length ?? 0) > 0 && (offer.pickCount ?? 0) > 0),
+  const activeOffers = useMemo(
+    () => offers.filter((offer) => isOfferActive(offer)).sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? "")),
+    [offers]
+  );
+  const productMap = useMemo(
+    () => new Map(offerProducts.map((product) => [product.id, product] as const)),
+    [offerProducts]
+  );
+  const regularItems = useMemo(() => items.filter((item) => !isComboCartItemId(item.id)), [items]);
+  const comboGroups = useMemo(() => groupComboCartItems(items), [items]);
+  const activeComboOfferMap = useMemo(
+    () =>
+      new Map(
+        activeOffers
+          .filter((offer) => offer.type === "combo")
+          .map((offer) => [offer.id, offer] as const)
+      ),
     [activeOffers]
   );
 
-  const completedComboOffers = useMemo(
-    () => activeComboOffers.filter((offer) => (comboSelections[offer.id] ?? []).length === (offer.pickCount ?? 0)),
-    [activeComboOffers, comboSelections]
-  );
-
-  const comboTotal = useMemo(
-    () => completedComboOffers.reduce((sum, offer) => sum + Number(offer.comboPrice ?? 0), 0),
-    [completedComboOffers]
-  );
-
-  const checkoutSubtotal = totalPrice + comboTotal;
-
   const qualifyingFreeShippingOffers = useMemo(
-    () => activeOffers.filter((offer) => offer.type === "free_shipping" && checkoutSubtotal >= Number(offer.minAmount ?? 0)),
-    [activeOffers, checkoutSubtotal]
+    () =>
+      activeOffers.filter(
+        (offer) =>
+          offer.type === "free_shipping" &&
+          doesOfferQualify(offer, items, productMap, totalPrice)
+      ),
+    [activeOffers, items, productMap, totalPrice]
   );
 
   const qualifyingFreeProductOffers = useMemo(
-    () => activeOffers.filter((offer) => offer.type === "free_product" && checkoutSubtotal >= Number(offer.minAmount ?? 0) && (offer.eligibleProducts?.length ?? 0) > 0),
-    [activeOffers, checkoutSubtotal]
+    () =>
+      activeOffers.filter(
+        (offer) =>
+          offer.type === "free_product" &&
+          doesOfferQualify(offer, items, productMap, totalPrice) &&
+          getEligibleProducts(offer, productMap).length > 0
+      ),
+    [activeOffers, items, productMap, totalPrice]
   );
 
   const freeProductOrderItems = useMemo<CartItem[]>(() => {
@@ -240,13 +182,11 @@ export default function CheckoutPage() {
     });
   }, [productMap, qualifyingFreeProductOffers, selectedFreeProducts]);
 
-  const comboOrderItems = useMemo(
-    () => completedComboOffers.flatMap((offer) => buildComboOrderItems(offer, comboSelections[offer.id] ?? [], productMap)),
-    [comboSelections, completedComboOffers, productMap]
-  );
-
   const appliedOffers = useMemo<AppliedOffer[]>(() => {
-    const shippingOffers = qualifyingFreeShippingOffers.map((offer) => ({ type: "free_shipping" as const, offerId: offer.id }));
+    const shippingOffers = qualifyingFreeShippingOffers.map((offer) => ({
+      type: "free_shipping" as const,
+      offerId: offer.id,
+    }));
 
     const giftOffers = qualifyingFreeProductOffers.flatMap((offer) => {
       const productId = selectedFreeProducts[offer.id];
@@ -257,19 +197,18 @@ export default function CheckoutPage() {
         : [];
     });
 
-    const comboOffers = completedComboOffers.map((offer) => ({
+    const comboOffers = comboGroups.map((group) => ({
       type: "combo" as const,
-      offerId: offer.id,
-      products: comboSelections[offer.id] ?? [],
-      comboPrice: Number(offer.comboPrice ?? 0),
+      offerId: group.offerId,
+      products: group.selectedProductIds,
+      comboPrice: Number(group.totalPrice.toFixed(2)),
     }));
 
     return [...shippingOffers, ...giftOffers, ...comboOffers];
-  }, [comboSelections, completedComboOffers, productMap, qualifyingFreeProductOffers, qualifyingFreeShippingOffers, selectedFreeProducts]);
+  }, [comboGroups, productMap, qualifyingFreeProductOffers, qualifyingFreeShippingOffers, selectedFreeProducts]);
 
-  const orderItems = useMemo(() => [...items, ...comboOrderItems, ...freeProductOrderItems], [comboOrderItems, freeProductOrderItems, items]);
+  const orderItems = useMemo(() => [...items, ...freeProductOrderItems], [freeProductOrderItems, items]);
   const orderItemCount = useMemo(() => orderItems.reduce((sum, item) => sum + item.quantity, 0), [orderItems]);
-  const finalTotal = checkoutSubtotal;
 
   const updateField = (field: keyof CheckoutFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -282,48 +221,15 @@ export default function CheckoutPage() {
 
   const useNewAddress = () => {
     setSelectedLocationId("new");
-    setFormData((prev) => ({ ...prev, city: hasSavedLocations ? "" : prev.city, customerAddress: hasSavedLocations ? "" : prev.customerAddress }));
+    setFormData((prev) => ({
+      ...prev,
+      city: hasSavedLocations ? "" : prev.city,
+      customerAddress: hasSavedLocations ? "" : prev.customerAddress,
+    }));
   };
 
   const selectFreeProduct = (offerId: string, productId: string) => {
     setSelectedFreeProducts((current) => ({ ...current, [offerId]: productId }));
-  };
-
-  const toggleComboPanel = (offerId: string) => {
-    setOpenCombos((current) => ({ ...current, [offerId]: !current[offerId] }));
-  };
-
-  const updateComboSelection = (offer: Offer, productId: string, action: "add" | "remove") => {
-    const pickCount = offer.pickCount ?? 0;
-
-    setComboSelections((current) => {
-      const selected = current[offer.id] ?? [];
-
-      if (action === "add") {
-        if (selected.length >= pickCount) {
-          return current;
-        }
-
-        return {
-          ...current,
-          [offer.id]: [...selected, productId],
-        };
-      }
-
-      const removalIndex = selected.lastIndexOf(productId);
-      if (removalIndex === -1) {
-        return current;
-      }
-
-      return {
-        ...current,
-        [offer.id]: selected.filter((selectedId, index) => !(selectedId === productId && index === removalIndex)),
-      };
-    });
-  };
-
-  const clearComboSelection = (offerId: string) => {
-    setComboSelections((current) => ({ ...current, [offerId]: [] }));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -344,16 +250,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    const incompleteComboOffer = activeComboOffers.find((offer) => {
-      const selected = comboSelections[offer.id] ?? [];
-      return selected.length > 0 && selected.length < (offer.pickCount ?? 0);
-    });
-
-    if (incompleteComboOffer) {
-      setError(`يرجى إكمال اختيار ${incompleteComboOffer.pickCount} منتجات لعرض الكومبو قبل متابعة الطلب.`);
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError("");
@@ -367,7 +263,7 @@ export default function CheckoutPage() {
         customerPhone: formData.customerPhone.trim(),
         customerAddress: formData.customerAddress.trim(),
         notes: formData.notes.trim(),
-        total: finalTotal,
+        total: totalPrice,
         status: "new",
         date: new Date().toISOString(),
         city,
@@ -409,7 +305,6 @@ export default function CheckoutPage() {
 
       clearCart();
       setSelectedFreeProducts({});
-      setComboSelections({});
       setSuccessOrderId(orderId);
     } catch {
       setError("تعذر إرسال الطلب الآن. يرجى المحاولة مرة أخرى بعد قليل.");
@@ -487,10 +382,6 @@ export default function CheckoutPage() {
             const eligibleProducts = getEligibleProducts(offer, productMap);
             const selectedProductId = selectedFreeProducts[offer.id];
 
-            if (eligibleProducts.length === 0) {
-              return null;
-            }
-
             return (
               <div key={offer.id} className="space-y-4 rounded-[2rem] border border-amber-200 bg-amber-50/80 p-5">
                 <div className="flex items-start gap-3">
@@ -531,93 +422,6 @@ export default function CheckoutPage() {
             );
           })}
 
-          {activeComboOffers.map((offer) => {
-            const eligibleProducts = getEligibleProducts(offer, productMap);
-            const selectedProductIds = comboSelections[offer.id] ?? [];
-            const selectedCount = selectedProductIds.length;
-            const isOpen = openCombos[offer.id] ?? false;
-
-            if (eligibleProducts.length === 0) {
-              return null;
-            }
-
-            return (
-              <div key={offer.id} className="rounded-[2rem] border border-sky-200 bg-sky-50/70 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="mt-1 h-5 w-5 text-sky-600" />
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">عرض خاص: اختر {offer.pickCount} منتجات بسعر {offer.comboPrice} شيكل</h2>
-                      <p className="mt-1 text-sm text-slate-600">{offer.title}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-700">
-                      {selectedCount}/{offer.pickCount} مختارة
-                    </span>
-                    {selectedCount > 0 ? (
-                      <button type="button" onClick={() => clearComboSelection(offer.id)} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
-                        مسح الاختيار
-                      </button>
-                    ) : null}
-                    <button type="button" onClick={() => toggleComboPanel(offer.id)} className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)]">
-                      {isOpen ? "إخفاء الخيارات" : "اختيار المنتجات"}
-                    </button>
-                  </div>
-                </div>
-
-                {isOpen ? (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {eligibleProducts.map((product) => {
-                      const productSelectionCount = getSelectionCount(selectedProductIds, product.id);
-                      const limitReached = selectedCount >= (offer.pickCount ?? 0);
-
-                      return (
-                        <div key={product.id} className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-                          <div className="relative aspect-square bg-slate-100">
-                            {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" /> : null}
-                          </div>
-                          <div className="space-y-3 p-4">
-                            <div>
-                              <p className="font-bold text-slate-900">{product.name}</p>
-                              <p className="mt-1 text-xs text-slate-500">{product.range}</p>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                              <span className="font-semibold text-[var(--primary)]">{formatCurrency(product.price)}</span>
-                              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">تم الاختيار {productSelectionCount} مرة</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => updateComboSelection(offer, product.id, "add")}
-                                disabled={limitReached}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => updateComboSelection(offer, product.id, "remove")}
-                                disabled={productSelectionCount === 0}
-                                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                <Minus className="h-4 w-4" />
-                              </button>
-                              <div className="mr-auto text-xs text-slate-500">
-                                {(offer.comboPrice ?? 0) > 0 ? `سعر القطعة ضمن العرض ${formatCurrency((offer.comboPrice ?? 0) / Math.max(1, offer.pickCount ?? 1))}` : null}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-
           {user && hasSavedLocations ? (
             <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -652,12 +456,12 @@ export default function CheckoutPage() {
 
             <label className="block space-y-2">
               <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><MapPinned className="h-4 w-4 text-[var(--primary)]" />المدينة</span>
-              <input value={formData.city} onChange={(event) => updateField("city", event.target.value)} disabled={usingSavedLocation} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="مثال: القدس" />
+              <input value={formData.city} onChange={(event) => updateField("city", event.target.value)} disabled={selectedLocationId !== "new"} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="مثال: القدس" />
             </label>
 
             <label className="block space-y-2 md:col-span-2">
               <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><MapPinned className="h-4 w-4 text-[var(--primary)]" />العنوان</span>
-              <textarea required value={formData.customerAddress} onChange={(event) => updateField("customerAddress", event.target.value)} disabled={usingSavedLocation} className="min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="المدينة، الحي، اسم الشارع، وأي تفاصيل إضافية" />
+              <textarea required value={formData.customerAddress} onChange={(event) => updateField("customerAddress", event.target.value)} disabled={selectedLocationId !== "new"} className="min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="المدينة، الحي، اسم الشارع، وأي تفاصيل إضافية" />
             </label>
 
             <label className="block space-y-2 md:col-span-2">
@@ -688,7 +492,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="space-y-4">
-            {items.map((item) => (
+            {regularItems.map((item) => (
               <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -701,23 +505,41 @@ export default function CheckoutPage() {
               </div>
             ))}
 
-            {comboOrderItems.length > 0 ? (
-              <div className="space-y-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
-                <div className="flex items-center gap-2 text-sky-800">
-                  <Sparkles className="h-4 w-4" />
-                  <p className="font-bold">العروض الخاصة المضافة</p>
-                </div>
-                {comboOrderItems.map((item) => (
-                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{item.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
+            {comboGroups.map((group) => {
+              const comboOffer = activeComboOfferMap.get(group.offerId);
+              return (
+                <div key={group.offerId} className="space-y-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sky-800">
+                      <Sparkles className="h-4 w-4" />
+                      <p className="font-bold">{comboOffer?.title ?? "عرض خاص"}</p>
                     </div>
-                    <p className="font-bold text-sky-700">{formatCurrency(item.price * item.quantity)}</p>
+                    {comboOffer ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveComboOffer(comboOffer);
+                          setEditingComboSelection(group.selectedProductIds);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        تعديل
+                      </button>
+                    ) : null}
                   </div>
-                ))}
-              </div>
-            ) : null}
+                  {group.items.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">{item.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
+                      </div>
+                      <p className="font-bold text-sky-700">{formatCurrency(item.price * item.quantity)}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
 
             {freeProductOrderItems.length > 0 ? (
               <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
@@ -740,18 +562,12 @@ export default function CheckoutPage() {
 
           <div className="rounded-3xl bg-amber-50 p-4 text-amber-800">
             <div className="flex items-center justify-between gap-3 text-sm font-medium text-amber-700">
-              <span>إجمالي المنتجات الأساسية</span>
+              <span>إجمالي المنتجات</span>
               <span>{formatCurrency(totalPrice)}</span>
             </div>
-            {comboTotal > 0 ? (
-              <div className="mt-2 flex items-center justify-between gap-3 text-sm font-medium text-amber-700">
-                <span>إجمالي عروض الكومبو</span>
-                <span>{formatCurrency(comboTotal)}</span>
-              </div>
-            ) : null}
             <div className="mt-3 flex items-center justify-between gap-3 text-lg font-bold">
               <span>الإجمالي النهائي</span>
-              <span>{formatCurrency(finalTotal)}</span>
+              <span>{formatCurrency(totalPrice)}</span>
             </div>
             <p className="mt-2 text-sm font-medium text-amber-700">
               {qualifyingFreeShippingOffers.length > 0 ? "هذا الطلب مؤهل للشحن المجاني." : "لا يشمل سعر التوصيل."}
@@ -761,6 +577,28 @@ export default function CheckoutPage() {
           <Link href="/track" className="block text-center text-sm font-semibold text-[var(--primary)] transition hover:underline">لديك رقم طلب؟ تتبع طلبك من هنا</Link>
         </aside>
       </div>
+
+      <ComboOfferModal
+        key={activeComboOffer ? `${activeComboOffer.id}-${editingComboSelection.join(",")}` : "checkout-combo-closed"}
+        open={Boolean(activeComboOffer)}
+        offer={activeComboOffer}
+        products={offerProducts}
+        initialSelection={editingComboSelection}
+        confirmLabel="حفظ التعديلات"
+        onClose={() => {
+          setActiveComboOffer(null);
+          setEditingComboSelection([]);
+        }}
+        onConfirm={(comboItems) => {
+          if (!activeComboOffer) {
+            return;
+          }
+
+          replaceComboItems(activeComboOffer.id, comboItems);
+          setActiveComboOffer(null);
+          setEditingComboSelection([]);
+        }}
+      />
     </section>
   );
 }

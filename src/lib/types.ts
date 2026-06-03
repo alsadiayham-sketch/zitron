@@ -37,7 +37,9 @@ export interface Offer {
   type: OfferType;
   title: string;
   minAmount?: number;
+  minQuantity?: number;
   eligibleProducts?: string[];
+  targetSections?: string[];
   pickCount?: number;
   comboPrice?: number;
   uniqueOnly?: boolean;

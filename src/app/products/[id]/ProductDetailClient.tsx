@@ -3,22 +3,31 @@
 import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, ShoppingBag, Minus, Plus, Check } from "lucide-react";
-import { useState, use, useEffect } from "react";
+import { Star, ShoppingBag, Minus, Plus, Check, Sparkles } from "lucide-react";
+import { useEffect, use, useMemo, useState } from "react";
 import { getDoc } from "firebase/firestore";
 import { getDocRef } from "@/lib/firebase";
+import { useOffers } from "@/lib/firebase-hooks";
+import { formatCurrency } from "@/lib/admin";
+import { isOfferActive } from "@/lib/offers";
 import type { Product } from "@/lib/types";
 
 export default function ProductDetailClient({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const isPlaceholder = id === "placeholder";
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isPlaceholder);
   const { addItem } = useCart();
+  const { offers } = useOffers();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeTab, setActiveTab] = useState<"description" | "ingredients" | "howToUse">("description");
 
   useEffect(() => {
+    if (isPlaceholder) {
+      return;
+    }
+
     async function fetchProduct() {
       try {
         const docRef = getDocRef("products", id);
@@ -31,8 +40,22 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
       }
       setLoading(false);
     }
-    fetchProduct();
-  }, [id]);
+
+    void fetchProduct();
+  }, [id, isPlaceholder]);
+
+  const activeSectionOffers = useMemo(
+    () =>
+      product
+        ? offers.filter(
+            (offer) =>
+              isOfferActive(offer) &&
+              (offer.targetSections?.length ?? 0) > 0 &&
+              offer.targetSections?.includes(product.category)
+          )
+        : [],
+    [offers, product]
+  );
 
   if (loading) {
     return (
@@ -113,6 +136,17 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
               <p className="text-gray-500 text-sm mb-4">{product.nameEn}</p>
 
+              {activeSectionOffers.length > 0 ? (
+               <div className="mb-4 space-y-2 rounded-[1.5rem] border border-orange-200 bg-orange-50 p-4">
+                 {activeSectionOffers.map((offer) => (
+                   <div key={offer.id} className="flex items-center gap-2 text-sm font-semibold text-orange-700">
+                     <Sparkles className="h-4 w-4" />
+                     {offer.title}
+                   </div>
+                 ))}
+               </div>
+              ) : null}
+ 
               {/* Rating */}
               <div className="flex items-center gap-2 mb-6">
                 <div className="flex gap-0.5">
@@ -129,9 +163,9 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
 
               {/* Price */}
               <div className="flex items-center gap-3 mb-6">
-                <span className="text-3xl font-bold text-[var(--primary)]">{product.price} ₪</span>
+                <span className="text-3xl font-bold text-[var(--primary)]">{formatCurrency(product.price)}</span>
                 {product.oldPrice && (
-                  <span className="text-lg text-gray-400 line-through">{product.oldPrice} ₪</span>
+                  <span className="text-lg text-gray-400 line-through">{formatCurrency(product.oldPrice)}</span>
                 )}
               </div>
 

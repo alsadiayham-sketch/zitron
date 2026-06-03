@@ -2,36 +2,26 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star, Filter } from "lucide-react";
-import { useState } from "react";
-import { useProducts } from "@/lib/firebase-hooks";
+import { Filter, Sparkles, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useOffers, useProducts } from "@/lib/firebase-hooks";
 import { useCart } from "@/context/CartContext";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { formatCurrency } from "@/lib/admin";
+import { isOfferActive } from "@/lib/offers";
 
-const categories = [
-  { id: "all", label: "الكل" },
-  { id: "sun", label: "الحماية من الشمس" },
-  { id: "serums", label: "السيروم" },
-  { id: "day-care", label: "العناية النهارية" },
-  { id: "night-care", label: "العناية الليلية" },
-  { id: "tinted", label: "العناية الملونة" },
-  { id: "body", label: "العناية بالجسم" },
-  { id: "cleansers", label: "المنظفات" },
-  { id: "micellar", label: "ماء ميسيلار" },
-  { id: "shampoos", label: "الشامبو" },
-  { id: "deodorants", label: "مزيلات العرق" },
-  { id: "masks", label: "الأقنعة" },
-  { id: "hands", label: "العناية باليدين" },
-];
+const categories = [{ id: "all", label: "الكل" }, ...PRODUCT_CATEGORIES];
 
 export default function ProductsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
   const { addItem } = useCart();
   const { products } = useProducts();
+  const { offers } = useOffers();
 
   const filtered = activeCategory === "all"
     ? products
-    : products.filter((p) => p.category === activeCategory);
+    : products.filter((product) => product.category === activeCategory);
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "price-asc") return a.price - b.price;
@@ -39,6 +29,19 @@ export default function ProductsPage() {
     if (sortBy === "rating") return b.rating - a.rating;
     return b.reviews - a.reviews;
   });
+
+  const activeSectionOffers = useMemo(
+    () =>
+      activeCategory === "all"
+        ? []
+        : offers.filter(
+            (offer) =>
+              isOfferActive(offer) &&
+              (offer.targetSections?.length ?? 0) > 0 &&
+              offer.targetSections?.includes(activeCategory)
+          ),
+    [activeCategory, offers]
+  );
 
   return (
     <>
@@ -86,6 +89,22 @@ export default function ProductsPage() {
               </select>
             </div>
           </div>
+
+          {activeSectionOffers.length > 0 ? (
+            <div className="mb-6 space-y-3 rounded-[2rem] border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-5">
+              <div className="flex items-center gap-2 text-orange-700">
+                <Sparkles className="h-5 w-5" />
+                <p className="font-bold">عروض مفعلة لهذا القسم</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeSectionOffers.map((offer) => (
+                  <span key={offer.id} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
+                    {offer.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <p className="text-gray-500 text-sm mb-6">{sorted.length} منتج</p>
 
@@ -139,7 +158,7 @@ export default function ProductsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[var(--primary)]">
-                      {product.price} ₪
+                      {formatCurrency(product.price)}
                     </span>
                     <button
                       onClick={() => addItem({ id: product.id, name: product.name, price: product.price, image: product.image, range: product.range })}

@@ -4,11 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star, ArrowLeft, Shield, Truck, Gift, Package, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { useState, useEffect } from "react";
-import { onSnapshot } from "firebase/firestore";
-import { useProducts, useHeroDisplay } from "@/lib/firebase-hooks";
-import { getCollection } from "@/lib/firebase";
+import { useEffect, useMemo, useState } from "react";
+import ComboOfferModal from "@/components/offers/ComboOfferModal";
+import { useOffers, useProducts, useHeroDisplay } from "@/lib/firebase-hooks";
 import { formatCurrency } from "@/lib/admin";
+import { isOfferActive } from "@/lib/offers";
 import type { Offer, Product } from "@/lib/types";
 
 // Fallback hero slides in case Firebase is empty
@@ -32,38 +32,33 @@ const fallbackHeroSlides = [
 ];
 
 export default function Home() {
-  const { addItem } = useCart();
+  const { addItem, replaceComboItems, setIsCartOpen } = useCart();
   const { products: allProducts } = useProducts();
+  const { offers } = useOffers();
   const { slides: heroSlidesFromDb } = useHeroDisplay();
   const products = allProducts.slice(0, 4);
   const heroSlides = heroSlidesFromDb.length > 0 ? heroSlidesFromDb : fallbackHeroSlides;
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [comboOffers, setComboOffers] = useState<(Offer & { productsData: Product[] })[]>([]);
+  const [activeComboOffer, setActiveComboOffer] = useState<Offer | null>(null);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(getCollection("offers"), (snapshot) => {
-      const now = new Date();
-      const combos = snapshot.docs
-        .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
-        .filter((offer) => {
-          if (offer.type !== "combo") return false;
-          if (offer.startDate && new Date(offer.startDate) > now) return false;
-          if (offer.endDate && new Date(offer.endDate) < now) return false;
-          return true;
-        });
-
-      const withProducts = combos.map((combo) => ({
-        ...combo,
-        productsData: (combo.eligibleProducts ?? [])
-          .map((pid) => allProducts.find((p) => p.id === pid))
-          .filter(Boolean) as Product[],
-      }));
-
-      setComboOffers(withProducts);
-    });
-
-    return () => unsubscribe();
-  }, [allProducts]);
+  const comboOffers = useMemo(
+    () =>
+      offers
+        .filter(
+          (offer) =>
+            offer.type === "combo" &&
+            isOfferActive(offer) &&
+            (offer.eligibleProducts?.length ?? 0) > 0 &&
+            (offer.pickCount ?? 0) > 0
+        )
+        .map((combo) => ({
+          ...combo,
+          productsData: (combo.eligibleProducts ?? [])
+            .map((productId) => allProducts.find((product) => product.id === productId))
+            .filter(Boolean) as Product[],
+        })),
+    [allProducts, offers]
+  );
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
@@ -247,13 +242,14 @@ export default function Home() {
                 </div>
 
                 <div className="mt-8 text-center">
-                  <Link
-                    href="/checkout"
-                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-orange-200/50 transition hover:shadow-xl hover:scale-[1.02]"
+                  <button
+                    type="button"
+                    onClick={() => setActiveComboOffer(combo)}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-orange-200/50 transition hover:scale-[1.02] hover:shadow-xl"
                   >
                     <Flame className="h-5 w-5" />
                     احصل على العرض الآن
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}
@@ -571,6 +567,24 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <ComboOfferModal
+        key={activeComboOffer?.id ?? "home-combo-closed"}
+        open={Boolean(activeComboOffer)}
+        offer={activeComboOffer}
+        products={allProducts}
+        confirmLabel="إضافة العرض إلى السلة"
+        onClose={() => setActiveComboOffer(null)}
+        onConfirm={(comboItems) => {
+          if (!activeComboOffer) {
+            return;
+          }
+
+          replaceComboItems(activeComboOffer.id, comboItems);
+          setIsCartOpen(true);
+          setActiveComboOffer(null);
+        }}
+      />
 
       {/* Benefits Bar */}
       <section className="border-t border-gray-100 py-12">
