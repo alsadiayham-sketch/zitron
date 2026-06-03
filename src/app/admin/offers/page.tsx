@@ -319,23 +319,26 @@ export default function AdminOffersPage() {
     }
 
     const docId = form.id || slugify(`${form.type}-${title}`) || crypto.randomUUID();
-    const payload: Omit<Offer, "id"> & { id: string } = {
+    const raw: Record<string, unknown> = {
       id: docId,
       type: form.type,
       title,
       createdAt: form.createdAt || new Date().toISOString(),
-      startDate: form.startDate || undefined,
-      endDate: form.endDate || undefined,
-      minAmount: form.type === "free_shipping" || form.type === "free_product" ? minAmount : undefined,
-      eligibleProducts: form.type === "free_product" || form.type === "combo" ? eligibleProducts : undefined,
-      pickCount: form.type === "combo" ? pickCount : undefined,
-      comboPrice: form.type === "combo" ? comboPrice : undefined,
-      uniqueOnly: form.type === "combo" ? (form.uniqueOnly ?? false) : undefined,
     };
+
+    if (form.startDate) raw.startDate = form.startDate;
+    if (form.endDate) raw.endDate = form.endDate;
+    if (form.type === "free_shipping" || form.type === "free_product") raw.minAmount = minAmount;
+    if (form.type === "free_product" || form.type === "combo") raw.eligibleProducts = eligibleProducts;
+    if (form.type === "combo") {
+      raw.pickCount = pickCount;
+      raw.comboPrice = comboPrice;
+      raw.uniqueOnly = form.uniqueOnly ?? false;
+    }
 
     try {
       setIsSaving(true);
-      await setDoc(getDocRef("offers", docId), payload);
+      await setDoc(getDocRef("offers", docId), raw);
       setIsModalOpen(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "فشل حفظ العرض.");
