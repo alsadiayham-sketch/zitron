@@ -152,9 +152,14 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const unsubscribeOffers = onSnapshot(getCollection("offers"), (snapshot) => {
+      const now = new Date();
       const nextOffers = snapshot.docs
         .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
-        .filter((offer) => offer.active)
+        .filter((offer) => {
+          if (offer.startDate && new Date(offer.startDate) > now) return false;
+          if (offer.endDate && new Date(offer.endDate) < now) return false;
+          return true;
+        })
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
       setActiveOffers(nextOffers);

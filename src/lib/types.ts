@@ -36,11 +36,12 @@ export interface Offer {
   id: string;
   type: OfferType;
   title: string;
-  active: boolean;
   minAmount?: number;
   eligibleProducts?: string[];
   pickCount?: number;
   comboPrice?: number;
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
 }
 

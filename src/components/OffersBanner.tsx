@@ -7,6 +7,13 @@ import type { Offer } from "@/lib/types";
 
 const BANNER_HEIGHT = "44px";
 
+function isOfferActive(offer: Offer): boolean {
+  const now = new Date();
+  if (offer.startDate && new Date(offer.startDate) > now) return false;
+  if (offer.endDate && new Date(offer.endDate) < now) return false;
+  return true;
+}
+
 export default function OffersBanner() {
   const [offers, setOffers] = useState<Offer[]>([]);
 
@@ -14,7 +21,7 @@ export default function OffersBanner() {
     const unsubscribe = onSnapshot(getCollection("offers"), (snapshot) => {
       const data = snapshot.docs
         .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
-        .filter((offer) => offer.active && offer.title.trim())
+        .filter((offer) => offer.title.trim() && isOfferActive(offer))
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
       setOffers(data);
@@ -71,3 +78,5 @@ export default function OffersBanner() {
     </div>
   );
 }
+
+export { isOfferActive };
