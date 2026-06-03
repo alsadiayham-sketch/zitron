@@ -494,13 +494,16 @@ export default function CheckoutPage() {
           <div className="space-y-4">
             {regularItems.map((item) => (
               <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex items-start gap-3">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-white border border-slate-100">
+                    <Image src={item.image} alt={item.name} fill className="object-contain p-1" sizes="64px" />
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-[var(--primary)]">{item.range}</p>
-                    <h3 className="mt-1 font-bold text-slate-900">{item.name}</h3>
+                    <h3 className="mt-1 font-bold text-slate-900 line-clamp-1">{item.name}</h3>
                     <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
                   </div>
-                  <p className="font-bold text-[var(--primary)]">{formatCurrency(item.price * item.quantity)}</p>
+                  <p className="font-bold text-[var(--primary)] flex-shrink-0">{formatCurrency(item.price * item.quantity)}</p>
                 </div>
               </div>
             ))}
@@ -529,12 +532,15 @@ export default function CheckoutPage() {
                     ) : null}
                   </div>
                   {group.items.map((item) => (
-                    <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3">
-                      <div>
-                        <p className="font-semibold text-slate-900">{item.name}</p>
+                    <div key={item.id} className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3">
+                      <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-slate-50 border border-slate-100">
+                        <Image src={item.image} alt={item.name} fill className="object-contain p-1" sizes="48px" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 line-clamp-1">{item.name}</p>
                         <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
                       </div>
-                      <p className="font-bold text-sky-700">{formatCurrency(item.price * item.quantity)}</p>
+                      <p className="font-bold text-sky-700 flex-shrink-0">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
