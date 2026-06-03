@@ -33,6 +33,7 @@ const emptyOffer: Offer = {
   eligibleProducts: [],
   pickCount: 2,
   comboPrice: 0,
+  uniqueOnly: false,
   startDate: "",
   endDate: "",
   createdAt: "",
@@ -234,6 +235,7 @@ export default function AdminOffersPage() {
       minAmount: offer.minAmount ?? 0,
       pickCount: offer.pickCount ?? 2,
       comboPrice: offer.comboPrice ?? 0,
+      uniqueOnly: offer.uniqueOnly ?? false,
       startDate: offer.startDate ?? "",
       endDate: offer.endDate ?? "",
     });
@@ -328,6 +330,7 @@ export default function AdminOffersPage() {
       eligibleProducts: form.type === "free_product" || form.type === "combo" ? eligibleProducts : undefined,
       pickCount: form.type === "combo" ? pickCount : undefined,
       comboPrice: form.type === "combo" ? comboPrice : undefined,
+      uniqueOnly: form.type === "combo" ? (form.uniqueOnly ?? false) : undefined,
     };
 
     try {
@@ -507,6 +510,20 @@ export default function AdminOffersPage() {
                 <div>
                   <FieldLabel>السعر الثابت للكومبو</FieldLabel>
                   <TextInput type="number" min="0" value={form.comboPrice ?? 0} onChange={(event) => setForm({ ...form, comboPrice: Number(event.target.value) })} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-[var(--primary)]/40">
+                    <input
+                      type="checkbox"
+                      checked={form.uniqueOnly ?? false}
+                      onChange={(event) => setForm({ ...form, uniqueOnly: event.target.checked })}
+                      className="h-4 w-4 accent-[var(--primary)]"
+                    />
+                    <div>
+                      <span className="text-sm font-semibold text-slate-900">منتجات فريدة فقط</span>
+                      <p className="text-xs text-slate-500">عند التفعيل، لا يمكن للعميل اختيار نفس المنتج أكثر من مرة</p>
+                    </div>
+                  </label>
                 </div>
               </>
             ) : null}

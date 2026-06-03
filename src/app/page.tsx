@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star, ArrowLeft, Shield, Truck, Gift, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ArrowLeft, Shield, Truck, Gift, Package, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useState, useEffect } from "react";
+import { onSnapshot } from "firebase/firestore";
 import { useProducts, useHeroDisplay } from "@/lib/firebase-hooks";
+import { getCollection } from "@/lib/firebase";
+import { formatCurrency } from "@/lib/admin";
+import type { Offer, Product } from "@/lib/types";
 
 // Fallback hero slides in case Firebase is empty
 const fallbackHeroSlides = [
@@ -34,6 +38,32 @@ export default function Home() {
   const products = allProducts.slice(0, 4);
   const heroSlides = heroSlidesFromDb.length > 0 ? heroSlidesFromDb : fallbackHeroSlides;
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [comboOffers, setComboOffers] = useState<(Offer & { productsData: Product[] })[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(getCollection("offers"), (snapshot) => {
+      const now = new Date();
+      const combos = snapshot.docs
+        .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
+        .filter((offer) => {
+          if (offer.type !== "combo") return false;
+          if (offer.startDate && new Date(offer.startDate) > now) return false;
+          if (offer.endDate && new Date(offer.endDate) < now) return false;
+          return true;
+        });
+
+      const withProducts = combos.map((combo) => ({
+        ...combo,
+        productsData: (combo.eligibleProducts ?? [])
+          .map((pid) => allProducts.find((p) => p.id === pid))
+          .filter(Boolean) as Product[],
+      }));
+
+      setComboOffers(withProducts);
+    });
+
+    return () => unsubscribe();
+  }, [allProducts]);
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
@@ -167,6 +197,69 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Combo Offers Section */}
+      {comboOffers.length > 0 ? (
+        <section className="py-16 bg-gradient-to-b from-orange-50/60 to-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {comboOffers.map((combo) => (
+              <div key={combo.id} className="rounded-[2.5rem] border border-orange-200/60 bg-white p-8 shadow-xl shadow-orange-100/30">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 px-5 py-2 text-white shadow-lg shadow-orange-200/50 mb-4">
+                    <Flame className="h-5 w-5 animate-pulse" />
+                    <span className="text-sm font-bold">عرض خاص</span>
+                    <Flame className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
+                    {combo.title}
+                  </h2>
+                  <p className="text-lg text-slate-600">
+                    اختر <span className="font-bold text-orange-600">{combo.pickCount}</span> منتجات بسعر{" "}
+                    <span className="font-bold text-orange-600">{formatCurrency(combo.comboPrice ?? 0)}</span> فقط!
+                  </p>
+                  {combo.uniqueOnly ? (
+                    <p className="mt-2 text-sm text-slate-400">* يجب اختيار منتجات مختلفة</p>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-400">* يمكنك اختيار أكثر من واحد من نفس المنتج</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {combo.productsData.slice(0, 10).map((product) => (
+                    <Link
+                      key={product.id}
+                      href={`/products/${product.id}`}
+                      className="group rounded-2xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-orange-300 hover:shadow-md"
+                    >
+                      <div className="relative aspect-square mb-3 rounded-xl bg-white overflow-hidden flex items-center justify-center">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-contain p-2 transition group-hover:scale-105"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        />
+                      </div>
+                      <p className="line-clamp-2 text-sm font-semibold text-slate-800 text-center">{product.name}</p>
+                      <p className="mt-1 text-center text-xs text-slate-400 line-through">{formatCurrency(product.price)}</p>
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="mt-8 text-center">
+                  <Link
+                    href="/checkout"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-orange-200/50 transition hover:shadow-xl hover:scale-[1.02]"
+                  >
+                    <Flame className="h-5 w-5" />
+                    احصل على العرض الآن
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Best Products Section */}
       <section className="py-20">

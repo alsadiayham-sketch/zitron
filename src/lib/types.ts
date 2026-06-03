@@ -40,6 +40,7 @@ export interface Offer {
   eligibleProducts?: string[];
   pickCount?: number;
   comboPrice?: number;
+  uniqueOnly?: boolean;
   startDate?: string;
   endDate?: string;
   createdAt: string;
