@@ -30,7 +30,11 @@ export default function OffersBanner() {
     return () => unsubscribe();
   }, []);
 
-  const bannerText = useMemo(() => offers.map((offer) => offer.title.trim()).filter(Boolean).join(" | "), [offers]);
+  const bannerText = useMemo(() => {
+    const titles = offers.map((offer) => offer.title.trim()).filter(Boolean);
+    if (titles.length === 0) return "";
+    return titles.map((t) => `💊 ${t} 💊`).join("  |||  ");
+  }, [offers]);
 
   useEffect(() => {
     if (typeof document === "undefined") {
