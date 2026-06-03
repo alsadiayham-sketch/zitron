@@ -20,7 +20,7 @@ jobs:
       - run: npm run build
       
       - name: Add SPA redirects
-        run: echo '/products/* /products/placeholder/index.html 200' > out/_redirects
+        run: echo '/products/* /products/placeholder.html 200' > out/_redirects
       
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
