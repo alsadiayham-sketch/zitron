@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { Check, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
+import { Check, Minus, Plus, Sparkles, X } from "lucide-react";
 import { formatCurrency } from "@/lib/admin";
 import { buildComboCartItems, getEligibleProducts, getSelectionCount } from "@/lib/offers";
 import type { CartItem, Offer, Product } from "@/lib/types";
@@ -261,23 +261,6 @@ export default function ComboOfferModal({
             </div>
           </motion.div>
 
-          {/* Floating Action Button - appears when selection is complete */}
-          <AnimatePresence>
-            {isComplete ? (
-              <motion.button
-                type="button"
-                onClick={handleConfirm}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="fixed bottom-6 left-6 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-2xl shadow-orange-500/40 sm:hidden"
-                aria-label="إضافة العرض إلى السلة"
-              >
-                <ShoppingBag className="h-7 w-7" />
-              </motion.button>
-            ) : null}
-          </AnimatePresence>
         </motion.div>
       ) : null}
     </AnimatePresence>
