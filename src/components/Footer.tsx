@@ -1,8 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { onSnapshot } from "firebase/firestore";
+import { getDocRef } from "@/lib/firebase";
+import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
 
 export default function Footer() {
+  const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(getDocRef("settings", "config"), (snapshot) => {
+      if (snapshot.exists()) {
+        setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <footer className="bg-[var(--primary-dark)] text-white">
       {/* Newsletter */}
@@ -86,15 +103,15 @@ export default function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-[var(--accent)] mt-1 flex-shrink-0" />
-                <span className="text-white/70 text-sm">الرياض، المملكة العربية السعودية</span>
+                <span className="text-white/70 text-sm">{settings.contactAddress}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={18} className="text-[var(--accent)] flex-shrink-0" />
-                <span className="text-white/70 text-sm" dir="ltr">+966 11 234 5678</span>
+                <span className="text-white/70 text-sm" dir="ltr">{settings.contactPhone}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-[var(--accent)] flex-shrink-0" />
-                <span className="text-white/70 text-sm">info@zitron.com</span>
+                <span className="text-white/70 text-sm">{settings.contactEmail}</span>
               </li>
             </ul>
           </div>
