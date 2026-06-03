@@ -32,15 +32,20 @@ export default function ProductsPage() {
 
   const activeSectionOffers = useMemo(
     () =>
+      offers.filter(
+        (offer) =>
+          isOfferActive(offer) &&
+          (offer.targetSections?.length ?? 0) > 0
+      ),
+    [offers]
+  );
+
+  const currentCategoryOffers = useMemo(
+    () =>
       activeCategory === "all"
-        ? []
-        : offers.filter(
-            (offer) =>
-              isOfferActive(offer) &&
-              (offer.targetSections?.length ?? 0) > 0 &&
-              offer.targetSections?.includes(activeCategory)
-          ),
-    [activeCategory, offers]
+        ? activeSectionOffers
+        : activeSectionOffers.filter((offer) => offer.targetSections?.includes(activeCategory)),
+    [activeCategory, activeSectionOffers]
   );
 
   return (
@@ -57,6 +62,34 @@ export default function ProductsPage() {
 
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section-specific offers banner - always displayed */}
+          {activeSectionOffers.length > 0 ? (
+            <div className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-l from-orange-500 via-red-500 to-pink-500 p-[2px] shadow-lg shadow-orange-200/40">
+              <div className="rounded-[calc(2rem-2px)] bg-white px-6 py-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-red-500 shadow-sm">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">🔥 عروض حصرية على الأقسام</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(activeCategory === "all" ? activeSectionOffers : currentCategoryOffers).map((offer) => {
+                    const sectionLabels = (offer.targetSections ?? [])
+                      .map((s) => categories.find((c) => c.id === s)?.label)
+                      .filter(Boolean)
+                      .join("، ");
+                    return (
+                      <div key={offer.id} className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm">
+                        <span className="font-bold text-orange-700">{offer.title}</span>
+                        {sectionLabels ? <span className="text-orange-500">({sectionLabels})</span> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Filters */}
           <div className="flex flex-col lg:flex-row gap-6 mb-10">
             <div className="flex-1 flex flex-wrap gap-2">
@@ -90,19 +123,9 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {activeSectionOffers.length > 0 ? (
-            <div className="mb-6 space-y-3 rounded-[2rem] border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-5">
-              <div className="flex items-center gap-2 text-orange-700">
-                <Sparkles className="h-5 w-5" />
-                <p className="font-bold">عروض مفعلة لهذا القسم</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {activeSectionOffers.map((offer) => (
-                  <span key={offer.id} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                    {offer.title}
-                  </span>
-                ))}
-              </div>
+          {currentCategoryOffers.length > 0 && activeCategory !== "all" ? (
+            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">
+              ✨ هذا القسم يتضمن عروضاً نشطة — تحقق من التفاصيل أعلاه!
             </div>
           ) : null}
 

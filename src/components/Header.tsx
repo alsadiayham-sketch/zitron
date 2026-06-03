@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X, Search, User, ShoppingBag, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import OffersBanner from "@/components/OffersBanner";
@@ -57,8 +57,11 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { totalItems, setIsCartOpen } = useCart();
   const { user } = useAuth();
+
+  useEffect(() => { setMounted(true); }, []);
 
   return (
     <>
@@ -79,7 +82,7 @@ export default function Header() {
             <div className="flex items-center gap-4">
               <button onClick={() => setSearchOpen(!searchOpen)} className="p-2 transition-colors hover:text-[var(--primary)]" aria-label="بحث"><Search size={20} /></button>
               <Link href={user ? "/account/profile" : "/account"} className="hidden p-2 transition-colors hover:text-[var(--primary)] sm:block" aria-label="حسابي"><User size={20} /></Link>
-              <button onClick={() => setIsCartOpen(true)} className="relative p-2 transition-colors hover:text-[var(--primary)]" aria-label="سلة التسوق"><ShoppingBag size={20} />{totalItems > 0 ? <span className="absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-xs text-white">{totalItems}</span> : null}</button>
+              <button onClick={() => setIsCartOpen(true)} className="relative p-2 transition-colors hover:text-[var(--primary)]" aria-label="سلة التسوق"><ShoppingBag size={20} />{mounted && totalItems > 0 ? <span className="absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-xs text-white">{totalItems}</span> : null}</button>
             </div>
           </div>
         </div>
