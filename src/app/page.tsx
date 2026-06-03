@@ -221,10 +221,10 @@ export default function Home() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                   {combo.productsData.slice(0, 10).map((product) => (
-                    <Link
+                    <div
                       key={product.id}
-                      href={`/products/${product.id}`}
-                      className="group rounded-2xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-orange-300 hover:shadow-md"
+                      className="group rounded-2xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-orange-300 hover:shadow-md cursor-pointer"
+                      onClick={() => setActiveComboOffer(combo)}
                     >
                       <div className="relative aspect-square mb-3 rounded-xl bg-white overflow-hidden flex items-center justify-center">
                         <Image
@@ -237,7 +237,7 @@ export default function Home() {
                       </div>
                       <p className="line-clamp-2 text-sm font-semibold text-slate-800 text-center">{product.name}</p>
                       <p className="mt-1 text-center text-xs text-slate-400 line-through">{formatCurrency(product.price)}</p>
-                    </Link>
+                    </div>
                   ))}
                 </div>
 
