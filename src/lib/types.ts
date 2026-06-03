@@ -30,6 +30,25 @@ export interface HeroSlide {
   order: number;
 }
 
+export type OfferType = "free_shipping" | "free_product" | "combo";
+
+export interface Offer {
+  id: string;
+  type: OfferType;
+  title: string;
+  active: boolean;
+  minAmount?: number;
+  eligibleProducts?: string[];
+  pickCount?: number;
+  comboPrice?: number;
+  createdAt: string;
+}
+
+export type AppliedOffer =
+  | { type: "free_shipping"; offerId: string }
+  | { type: "free_product"; offerId: string; productId: string; productName: string }
+  | { type: "combo"; offerId: string; products: string[]; comboPrice: number };
+
 export interface Order {
   id?: string;
   _docId?: string;
@@ -43,6 +62,7 @@ export interface Order {
   status: "new" | "processing" | "prepared" | "out_for_delivery" | "completed" | "declined";
   date: string;
   notes?: string;
+  appliedOffers?: AppliedOffer[];
 }
 
 export interface CartItem {

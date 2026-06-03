@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Package,
   Images,
+  Tag,
   ShoppingCart,
   Users,
   Settings,
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { href: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, roles: ["admin"] },
   { href: "/admin/products", label: "المنتجات", icon: Package, roles: ["admin"] },
   { href: "/admin/hero", label: "العرض الرئيسي", icon: Images, roles: ["admin"] },
+  { href: "/admin/offers", label: "العروض", icon: Tag, roles: ["admin"] },
   {
     href: "/admin/orders",
     label: "الطلبات",

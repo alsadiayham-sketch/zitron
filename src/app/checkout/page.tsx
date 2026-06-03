@@ -2,14 +2,29 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { addDoc, increment, updateDoc } from "firebase/firestore";
-import { CheckCircle2, Copy, MapPinned, NotebookPen, Phone, ShoppingBag, UserRound } from "lucide-react";
+import { addDoc, increment, onSnapshot, updateDoc } from "firebase/firestore";
+import {
+  CheckCircle2,
+  Copy,
+  Gift,
+  MapPinned,
+  Minus,
+  NotebookPen,
+  Phone,
+  Plus,
+  ShoppingBag,
+  Sparkles,
+  Truck,
+  UserRound,
+} from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/context/CartContext";
+import { useCart, type CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import type { SavedLocation } from "@/lib/admin";
 import { formatCurrency } from "@/lib/admin";
 import { getCollection, getDocRef } from "@/lib/firebase";
+import type { AppliedOffer, Offer, Product } from "@/lib/types";
 import {
   CUSTOMER_ADDRESS_STORAGE_KEY,
   CUSTOMER_CITY_STORAGE_KEY,
@@ -27,6 +42,9 @@ type CheckoutFormState = {
   notes: string;
 };
 
+type ComboSelections = Record<string, string[]>;
+type FreeSelections = Record<string, string>;
+
 const initialFormState: CheckoutFormState = {
   customerName: "",
   customerPhone: "",
@@ -37,6 +55,42 @@ const initialFormState: CheckoutFormState = {
 
 function generateLocationId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `location-${Date.now()}`;
+}
+
+function getEligibleProducts(offer: Offer, productMap: Map<string, Product>) {
+  return (offer.eligibleProducts ?? [])
+    .map((productId) => productMap.get(productId))
+    .filter((product): product is Product => Boolean(product));
+}
+
+function getSelectionCount(selectedProductIds: string[], productId: string) {
+  return selectedProductIds.filter((selectedId) => selectedId === productId).length;
+}
+
+function buildComboOrderItems(offer: Offer, selectedProductIds: string[], productMap: Map<string, Product>): CartItem[] {
+  const counts = new Map<string, number>();
+
+  for (const productId of selectedProductIds) {
+    counts.set(productId, (counts.get(productId) ?? 0) + 1);
+  }
+
+  const comboUnitPrice = Number(((offer.comboPrice ?? 0) / Math.max(1, offer.pickCount ?? 1)).toFixed(2));
+
+  return Array.from(counts.entries()).flatMap(([productId, quantity]) => {
+    const product = productMap.get(productId);
+    if (!product) return [];
+
+    return [
+      {
+        id: `${product.id}__combo__${offer.id}`,
+        name: `${product.name} (عرض خاص)`,
+        price: comboUnitPrice,
+        image: product.image,
+        quantity,
+        range: product.range,
+      },
+    ];
+  });
 }
 
 export default function CheckoutPage() {
@@ -62,6 +116,11 @@ export default function CheckoutPage() {
   const [copied, setCopied] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<"new" | string>("new");
   const [saveNewAddressPreference, setSaveNewAddressPreference] = useState<"yes" | "no" | null>(null);
+  const [activeOffers, setActiveOffers] = useState<Offer[]>([]);
+  const [offerProducts, setOfferProducts] = useState<Product[]>([]);
+  const [selectedFreeProducts, setSelectedFreeProducts] = useState<FreeSelections>({});
+  const [comboSelections, setComboSelections] = useState<ComboSelections>({});
+  const [openCombos, setOpenCombos] = useState<Record<string, boolean>>({});
   const initializedProfile = useRef(false);
 
   const savedLocations = useMemo(() => profile?.locations ?? [], [profile?.locations]);
@@ -92,6 +151,27 @@ export default function CheckoutPage() {
   }, [profile, savedLocations, user]);
 
   useEffect(() => {
+    const unsubscribeOffers = onSnapshot(getCollection("offers"), (snapshot) => {
+      const nextOffers = snapshot.docs
+        .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
+        .filter((offer) => offer.active)
+        .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+
+      setActiveOffers(nextOffers);
+    });
+
+    const unsubscribeProducts = onSnapshot(getCollection("products"), (snapshot) => {
+      const nextProducts = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<Product, "id">), id: doc.id })) as Product[];
+      setOfferProducts(nextProducts);
+    });
+
+    return () => {
+      unsubscribeOffers();
+      unsubscribeProducts();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!successOrderId) {
       return;
     }
@@ -103,8 +183,88 @@ export default function CheckoutPage() {
     return () => window.clearTimeout(timeout);
   }, [router, successOrderId]);
 
-  const itemCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
   const usingSavedLocation = selectedLocationId !== "new";
+  const productMap = useMemo(() => new Map(offerProducts.map((product) => [product.id, product] as const)), [offerProducts]);
+
+  const activeComboOffers = useMemo(
+    () => activeOffers.filter((offer) => offer.type === "combo" && (offer.eligibleProducts?.length ?? 0) > 0 && (offer.pickCount ?? 0) > 0),
+    [activeOffers]
+  );
+
+  const completedComboOffers = useMemo(
+    () => activeComboOffers.filter((offer) => (comboSelections[offer.id] ?? []).length === (offer.pickCount ?? 0)),
+    [activeComboOffers, comboSelections]
+  );
+
+  const comboTotal = useMemo(
+    () => completedComboOffers.reduce((sum, offer) => sum + Number(offer.comboPrice ?? 0), 0),
+    [completedComboOffers]
+  );
+
+  const checkoutSubtotal = totalPrice + comboTotal;
+
+  const qualifyingFreeShippingOffers = useMemo(
+    () => activeOffers.filter((offer) => offer.type === "free_shipping" && checkoutSubtotal >= Number(offer.minAmount ?? 0)),
+    [activeOffers, checkoutSubtotal]
+  );
+
+  const qualifyingFreeProductOffers = useMemo(
+    () => activeOffers.filter((offer) => offer.type === "free_product" && checkoutSubtotal >= Number(offer.minAmount ?? 0) && (offer.eligibleProducts?.length ?? 0) > 0),
+    [activeOffers, checkoutSubtotal]
+  );
+
+  const freeProductOrderItems = useMemo<CartItem[]>(() => {
+    return qualifyingFreeProductOffers.flatMap((offer) => {
+      const selectedProductId = selectedFreeProducts[offer.id];
+      const product = selectedProductId ? productMap.get(selectedProductId) : undefined;
+
+      if (!product) {
+        return [];
+      }
+
+      return [
+        {
+          id: `${product.id}__gift__${offer.id}`,
+          name: `${product.name} (هدية مجانية)`,
+          price: 0,
+          image: product.image,
+          quantity: 1,
+          range: product.range,
+        },
+      ];
+    });
+  }, [productMap, qualifyingFreeProductOffers, selectedFreeProducts]);
+
+  const comboOrderItems = useMemo(
+    () => completedComboOffers.flatMap((offer) => buildComboOrderItems(offer, comboSelections[offer.id] ?? [], productMap)),
+    [comboSelections, completedComboOffers, productMap]
+  );
+
+  const appliedOffers = useMemo<AppliedOffer[]>(() => {
+    const shippingOffers = qualifyingFreeShippingOffers.map((offer) => ({ type: "free_shipping" as const, offerId: offer.id }));
+
+    const giftOffers = qualifyingFreeProductOffers.flatMap((offer) => {
+      const productId = selectedFreeProducts[offer.id];
+      const product = productId ? productMap.get(productId) : undefined;
+
+      return product
+        ? [{ type: "free_product" as const, offerId: offer.id, productId: product.id, productName: product.name }]
+        : [];
+    });
+
+    const comboOffers = completedComboOffers.map((offer) => ({
+      type: "combo" as const,
+      offerId: offer.id,
+      products: comboSelections[offer.id] ?? [],
+      comboPrice: Number(offer.comboPrice ?? 0),
+    }));
+
+    return [...shippingOffers, ...giftOffers, ...comboOffers];
+  }, [comboSelections, completedComboOffers, productMap, qualifyingFreeProductOffers, qualifyingFreeShippingOffers, selectedFreeProducts]);
+
+  const orderItems = useMemo(() => [...items, ...comboOrderItems, ...freeProductOrderItems], [comboOrderItems, freeProductOrderItems, items]);
+  const orderItemCount = useMemo(() => orderItems.reduce((sum, item) => sum + item.quantity, 0), [orderItems]);
+  const finalTotal = checkoutSubtotal;
 
   const updateField = (field: keyof CheckoutFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -120,11 +280,72 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, city: hasSavedLocations ? "" : prev.city, customerAddress: hasSavedLocations ? "" : prev.customerAddress }));
   };
 
+  const selectFreeProduct = (offerId: string, productId: string) => {
+    setSelectedFreeProducts((current) => ({ ...current, [offerId]: productId }));
+  };
+
+  const toggleComboPanel = (offerId: string) => {
+    setOpenCombos((current) => ({ ...current, [offerId]: !current[offerId] }));
+  };
+
+  const updateComboSelection = (offer: Offer, productId: string, action: "add" | "remove") => {
+    const pickCount = offer.pickCount ?? 0;
+
+    setComboSelections((current) => {
+      const selected = current[offer.id] ?? [];
+
+      if (action === "add") {
+        if (selected.length >= pickCount) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [offer.id]: [...selected, productId],
+        };
+      }
+
+      const removalIndex = selected.lastIndexOf(productId);
+      if (removalIndex === -1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [offer.id]: selected.filter((selectedId, index) => !(selectedId === productId && index === removalIndex)),
+      };
+    });
+  };
+
+  const clearComboSelection = (offerId: string) => {
+    setComboSelections((current) => ({ ...current, [offerId]: [] }));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (items.length === 0) {
       setError("السلة فارغة حالياً، أضف منتجات قبل إتمام الطلب.");
+      return;
+    }
+
+    const missingFreeProductOffer = qualifyingFreeProductOffers.find((offer) => {
+      const selectedProductId = selectedFreeProducts[offer.id];
+      return !selectedProductId || !productMap.has(selectedProductId);
+    });
+
+    if (missingFreeProductOffer) {
+      setError("يرجى اختيار المنتج المجاني المؤهل قبل تأكيد الطلب.");
+      return;
+    }
+
+    const incompleteComboOffer = activeComboOffers.find((offer) => {
+      const selected = comboSelections[offer.id] ?? [];
+      return selected.length > 0 && selected.length < (offer.pickCount ?? 0);
+    });
+
+    if (incompleteComboOffer) {
+      setError(`يرجى إكمال اختيار ${incompleteComboOffer.pickCount} منتجات لعرض الكومبو قبل متابعة الطلب.`);
       return;
     }
 
@@ -136,15 +357,16 @@ export default function CheckoutPage() {
       const orderId = generateOrderId();
       const orderRef = await addDoc(getCollection("orders"), {
         orderId,
-        items,
+        items: orderItems,
         customerName: formData.customerName.trim(),
         customerPhone: formData.customerPhone.trim(),
         customerAddress: formData.customerAddress.trim(),
         notes: formData.notes.trim(),
-        total: totalPrice,
+        total: finalTotal,
         status: "new",
         date: new Date().toISOString(),
         city,
+        appliedOffers,
         ...(user ? { userId: user.uid } : {}),
       });
 
@@ -181,6 +403,8 @@ export default function CheckoutPage() {
       }
 
       clearCart();
+      setSelectedFreeProducts({});
+      setComboSelections({});
       setSuccessOrderId(orderId);
     } catch {
       setError("تعذر إرسال الطلب الآن. يرجى المحاولة مرة أخرى بعد قليل.");
@@ -242,6 +466,153 @@ export default function CheckoutPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr]">
         <form onSubmit={handleSubmit} className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          {qualifyingFreeShippingOffers.length > 0 ? (
+            <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+              <div className="flex items-center gap-3">
+                <Truck className="h-5 w-5" />
+                <div>
+                  <p className="font-bold">🎉 شحن مجاني!</p>
+                  <p className="mt-1 text-sm">هذا الطلب مؤهل للشحن المجاني بفضل العرض النشط.</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {qualifyingFreeProductOffers.map((offer) => {
+            const eligibleProducts = getEligibleProducts(offer, productMap);
+            const selectedProductId = selectedFreeProducts[offer.id];
+
+            if (eligibleProducts.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={offer.id} className="space-y-4 rounded-[2rem] border border-amber-200 bg-amber-50/80 p-5">
+                <div className="flex items-start gap-3">
+                  <Gift className="mt-1 h-5 w-5 text-amber-600" />
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">اختر منتجك المجاني</h2>
+                    <p className="mt-1 text-sm text-slate-600">{offer.title}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {eligibleProducts.map((product) => {
+                    const isSelected = selectedProductId === product.id;
+
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => selectFreeProduct(offer.id, product.id)}
+                        className={`overflow-hidden rounded-[1.5rem] border bg-white text-right transition ${isSelected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-slate-200 hover:border-[var(--primary)]/40"}`}
+                      >
+                        <div className="relative aspect-square bg-slate-100">
+                          {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" /> : null}
+                        </div>
+                        <div className="space-y-2 p-4">
+                          <p className="font-bold text-slate-900">{product.name}</p>
+                          <p className="text-xs text-slate-500">{product.range}</p>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">مجاني</span>
+                            <span className="text-sm text-slate-400 line-through">{formatCurrency(product.price)}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {activeComboOffers.map((offer) => {
+            const eligibleProducts = getEligibleProducts(offer, productMap);
+            const selectedProductIds = comboSelections[offer.id] ?? [];
+            const selectedCount = selectedProductIds.length;
+            const isOpen = openCombos[offer.id] ?? false;
+
+            if (eligibleProducts.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={offer.id} className="rounded-[2rem] border border-sky-200 bg-sky-50/70 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="mt-1 h-5 w-5 text-sky-600" />
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">عرض خاص: اختر {offer.pickCount} منتجات بسعر {offer.comboPrice} شيكل</h2>
+                      <p className="mt-1 text-sm text-slate-600">{offer.title}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-700">
+                      {selectedCount}/{offer.pickCount} مختارة
+                    </span>
+                    {selectedCount > 0 ? (
+                      <button type="button" onClick={() => clearComboSelection(offer.id)} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
+                        مسح الاختيار
+                      </button>
+                    ) : null}
+                    <button type="button" onClick={() => toggleComboPanel(offer.id)} className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)]">
+                      {isOpen ? "إخفاء الخيارات" : "اختيار المنتجات"}
+                    </button>
+                  </div>
+                </div>
+
+                {isOpen ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {eligibleProducts.map((product) => {
+                      const productSelectionCount = getSelectionCount(selectedProductIds, product.id);
+                      const limitReached = selectedCount >= (offer.pickCount ?? 0);
+
+                      return (
+                        <div key={product.id} className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+                          <div className="relative aspect-square bg-slate-100">
+                            {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" /> : null}
+                          </div>
+                          <div className="space-y-3 p-4">
+                            <div>
+                              <p className="font-bold text-slate-900">{product.name}</p>
+                              <p className="mt-1 text-xs text-slate-500">{product.range}</p>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                              <span className="font-semibold text-[var(--primary)]">{formatCurrency(product.price)}</span>
+                              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">تم الاختيار {productSelectionCount} مرة</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateComboSelection(offer, product.id, "add")}
+                                disabled={limitReached}
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateComboSelection(offer, product.id, "remove")}
+                                disabled={productSelectionCount === 0}
+                                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <div className="mr-auto text-xs text-slate-500">
+                                {(offer.comboPrice ?? 0) > 0 ? `سعر القطعة ضمن العرض ${formatCurrency((offer.comboPrice ?? 0) / Math.max(1, offer.pickCount ?? 1))}` : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+
           {user && hasSavedLocations ? (
             <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -308,7 +679,7 @@ export default function CheckoutPage() {
         <aside className="space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-xl font-bold text-slate-900">ملخص السلة</h2>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">{itemCount} قطعة</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">{orderItemCount} قطعة</span>
           </div>
 
           <div className="space-y-4">
@@ -324,11 +695,62 @@ export default function CheckoutPage() {
                 </div>
               </div>
             ))}
+
+            {comboOrderItems.length > 0 ? (
+              <div className="space-y-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
+                <div className="flex items-center gap-2 text-sky-800">
+                  <Sparkles className="h-4 w-4" />
+                  <p className="font-bold">العروض الخاصة المضافة</p>
+                </div>
+                {comboOrderItems.map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                    <div>
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
+                    </div>
+                    <p className="font-bold text-sky-700">{formatCurrency(item.price * item.quantity)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {freeProductOrderItems.length > 0 ? (
+              <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-center gap-2 text-emerald-800">
+                  <Gift className="h-4 w-4" />
+                  <p className="font-bold">الهدايا المجانية</p>
+                </div>
+                {freeProductOrderItems.map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                    <div>
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">هدية مجانية ضمن العرض</p>
+                    </div>
+                    <p className="font-bold text-emerald-700">مجاني</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-3xl bg-amber-50 p-4 text-amber-800">
-            <div className="flex items-center justify-between gap-3 text-lg font-bold"><span>الإجمالي</span><span>{formatCurrency(totalPrice)}</span></div>
-            <p className="mt-2 text-sm font-medium text-amber-700">لا يشمل سعر التوصيل</p>
+            <div className="flex items-center justify-between gap-3 text-sm font-medium text-amber-700">
+              <span>إجمالي المنتجات الأساسية</span>
+              <span>{formatCurrency(totalPrice)}</span>
+            </div>
+            {comboTotal > 0 ? (
+              <div className="mt-2 flex items-center justify-between gap-3 text-sm font-medium text-amber-700">
+                <span>إجمالي عروض الكومبو</span>
+                <span>{formatCurrency(comboTotal)}</span>
+              </div>
+            ) : null}
+            <div className="mt-3 flex items-center justify-between gap-3 text-lg font-bold">
+              <span>الإجمالي النهائي</span>
+              <span>{formatCurrency(finalTotal)}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-amber-700">
+              {qualifyingFreeShippingOffers.length > 0 ? "هذا الطلب مؤهل للشحن المجاني." : "لا يشمل سعر التوصيل."}
+            </p>
           </div>
 
           <Link href="/track" className="block text-center text-sm font-semibold text-[var(--primary)] transition hover:underline">لديك رقم طلب؟ تتبع طلبك من هنا</Link>

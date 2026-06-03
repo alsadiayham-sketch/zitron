@@ -31,7 +31,7 @@ export default function Footer() {
             <input
               type="email"
               placeholder="بريدك الإلكتروني"
-              className="flex-1 rounded-full py-3 px-6 text-gray-800 text-sm focus:outline-none"
+              className="flex-1 rounded-full py-3 px-6 text-gray-800 text-sm focus:outline-none border-2 border-white/40 placeholder:text-gray-500"
             />
             <button className="bg-[var(--accent)] hover:bg-[var(--gold)] text-white font-medium py-3 px-8 rounded-full transition-colors text-sm">
               اشترك

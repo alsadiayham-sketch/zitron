@@ -6,6 +6,7 @@ import { Menu, X, Search, User, ShoppingBag, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import OffersBanner from "@/components/OffersBanner";
 
 const navItems = [
   { label: "منتجاتنا", href: "#", submenu: [
@@ -61,8 +62,8 @@ export default function Header() {
 
   return (
     <>
-      <div className="promo-bar px-4 py-2 text-center text-sm text-white"><p>احصل على منتج مجاني عند شرائك بقيمة 89 شيكل أو أكثر! | شحن مجاني للطلبات فوق 49 شيكل</p></div>
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-sm">
+      <OffersBanner />
+      <header className="sticky z-50 border-b border-gray-100 bg-white shadow-sm" style={{ top: "var(--offers-banner-height, 0px)" }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-20 items-center justify-between">
             <button className="p-2 lg:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label="القائمة">{mobileOpen ? <X size={24} /> : <Menu size={24} />}</button>
