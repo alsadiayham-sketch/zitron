@@ -364,8 +364,8 @@ export default function CheckoutPage() {
         <p className="mt-2 text-slate-500">أكمل بياناتك وسنقوم بتجهيز طلبك في أسرع وقت ممكن.</p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr]">
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid gap-8 lg:grid-cols-[0.8fr,1.2fr]">
+        <form onSubmit={handleSubmit} className="order-2 space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           {qualifyingFreeShippingOffers.length > 0 ? (
             <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
               <div className="flex items-center gap-3">
@@ -485,7 +485,7 @@ export default function CheckoutPage() {
           <button type="submit" disabled={submitting} className="w-full rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري إرسال الطلب..." : "تأكيد الطلب"}</button>
         </form>
 
-        <aside className="space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <aside className="order-1 space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-xl font-bold text-slate-900">ملخص السلة</h2>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">{orderItemCount} قطعة</span>

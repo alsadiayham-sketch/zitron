@@ -32,7 +32,7 @@ const fallbackHeroSlides = [
 ];
 
 export default function Home() {
-  const { addItem, replaceComboItems, setIsCartOpen } = useCart();
+  const { addItem, replaceComboItems } = useCart();
   const { products: allProducts } = useProducts();
   const { offers } = useOffers();
   const { slides: heroSlidesFromDb } = useHeroDisplay();
@@ -581,7 +581,6 @@ export default function Home() {
           }
 
           replaceComboItems(activeComboOffer.id, comboItems);
-          setIsCartOpen(true);
           setActiveComboOffer(null);
         }}
       />
