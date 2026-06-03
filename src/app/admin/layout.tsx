@@ -108,7 +108,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</label>
-            <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="zitron أو worker@email.com" />
+            <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل اسم المستخدم أو البريد" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور</label>

@@ -69,12 +69,10 @@ export default function AdminUsersPage() {
       await setDoc(
         getDocRef("users", form.id),
         {
-          ...form,
           name: form.name.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
           createdAt: form.createdAt || new Date().toISOString(),
-          orders: Number(form.orders || 0),
         },
         { merge: true }
       );
@@ -180,12 +178,11 @@ export default function AdminUsersPage() {
         ) : null}
       </AdminModal>
 
-      <AdminModal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="تعديل بيانات العميل" description="حدّث معلومات التواصل وعدد الطلبات المحفوظة لهذا العميل." size="max-w-2xl">
+      <AdminModal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="تعديل بيانات العميل" description="حدّث معلومات التواصل المحفوظة لهذا العميل." size="max-w-2xl">
         <form onSubmit={saveUser} className="space-y-5">
           <div><FieldLabel>الاسم</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
           <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
           <div><FieldLabel>رقم الهاتف</FieldLabel><TextInput value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></div>
-          <div><FieldLabel>عدد الطلبات</FieldLabel><TextInput type="number" min="0" value={form.orders ?? 0} onChange={(event) => setForm({ ...form, orders: Number(event.target.value) })} /></div>
           {formError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div> : null}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button type="button" onClick={() => setIsEditOpen(false)} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">إلغاء</button>

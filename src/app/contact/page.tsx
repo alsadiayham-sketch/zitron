@@ -1,15 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { onSnapshot } from "firebase/firestore";
 import { Mail, Phone, MapPin, Send, Clock } from "lucide-react";
+import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
+import { getDocRef } from "@/lib/firebase";
 
 export default function ContactPage() {
+  const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     subject: "",
     message: "",
   });
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(getDocRef("settings", "config"), (snapshot) => {
+      if (snapshot.exists()) {
+        setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
+      } else {
+        setSettings(DEFAULT_SETTINGS);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,11 +67,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-[var(--primary)] mb-1">العنوان</h3>
-                    <p className="text-gray-600 text-sm">
-                      طريق الملك فهد، حي العليا
-                      <br />
-                      الرياض، المملكة العربية السعودية
-                    </p>
+                    <p className="text-gray-600 text-sm whitespace-pre-line">{settings.contactAddress}</p>
                   </div>
                 </div>
 
@@ -65,8 +77,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-[var(--primary)] mb-1">الهاتف</h3>
-                    <p className="text-gray-600 text-sm" dir="ltr">+966 11 234 5678</p>
-                    <p className="text-gray-600 text-sm" dir="ltr">+966 50 123 4567</p>
+                    <p className="text-gray-600 text-sm" dir="ltr">{settings.contactPhone}</p>
                   </div>
                 </div>
 
@@ -76,8 +87,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-[var(--primary)] mb-1">البريد الإلكتروني</h3>
-                    <p className="text-gray-600 text-sm">info@zitron.com</p>
-                    <p className="text-gray-600 text-sm">support@zitron.com</p>
+                    <p className="text-gray-600 text-sm">{settings.contactEmail}</p>
                   </div>
                 </div>
 
@@ -87,8 +97,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-[var(--primary)] mb-1">ساعات العمل</h3>
-                    <p className="text-gray-600 text-sm">الأحد - الخميس: 9:00 ص - 6:00 م</p>
-                    <p className="text-gray-600 text-sm">الجمعة - السبت: مغلق</p>
+                    <p className="text-gray-600 text-sm whitespace-pre-line">{settings.contactWorkHours}</p>
                   </div>
                 </div>
               </div>

@@ -86,6 +86,10 @@ export interface AdminSettings {
   currencyName: string;
   whatsappNumber: string;
   instagramLink: string;
+  contactAddress: string;
+  contactPhone: string;
+  contactEmail: string;
+  contactWorkHours: string;
 }
 
 export const DEFAULT_SETTINGS: AdminSettings = {
@@ -98,6 +102,10 @@ export const DEFAULT_SETTINGS: AdminSettings = {
   currencyName: "شيكل",
   whatsappNumber: "",
   instagramLink: "",
+  contactAddress: "رام الله، فلسطين",
+  contactPhone: "0599123456",
+  contactEmail: "info@zitron.com",
+  contactWorkHours: "الأحد - الخميس: 9:00 ص - 6:00 م",
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

@@ -13,8 +13,7 @@ const PAGE_SIZE = 20;
 
 type DateFilterMode = "all" | "after" | "before" | "between";
 
-const statusOptions: { value: "all" | OrderStatus; label: string }[] = [
-  { value: "all", label: "كل الحالات" },
+const statusOptions: { value: OrderStatus; label: string }[] = [
   { value: "new", label: "جديد" },
   { value: "processing", label: "قيد التحضير" },
   { value: "prepared", label: "جاهز" },
@@ -29,7 +28,7 @@ export default function AdminAllOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]["value"]>("all");
+  const [statusFilters, setStatusFilters] = useState<OrderStatus[]>([]);
   const [cityFilter, setCityFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
@@ -41,6 +40,12 @@ export default function AdminAllOrdersPage() {
   const observerTargetRef = useRef<HTMLDivElement | null>(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
+
+  const toggleStatusFilter = (status: OrderStatus) => {
+    setStatusFilters((current) =>
+      current.includes(status) ? current.filter((value) => value !== status) : [...current, status]
+    );
+  };
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -127,7 +132,7 @@ export default function AdminAllOrdersPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return orders.filter((order) => {
-      if (statusFilter !== "all" && order.status !== statusFilter) {
+      if (statusFilters.length > 0 && !statusFilters.includes(order.status)) {
         return false;
       }
 
@@ -173,7 +178,7 @@ export default function AdminAllOrdersPage() {
 
       return true;
     });
-  }, [cityFilter, dateFilterMode, fromDate, orders, searchTerm, statusFilter, toDate]);
+  }, [cityFilter, dateFilterMode, fromDate, orders, searchTerm, statusFilters, toDate]);
 
   if (loading && orders.length === 0) {
     return <LoadingState label="جاري تحميل كل الطلبات..." />;
@@ -198,18 +203,42 @@ export default function AdminAllOrdersPage() {
       />
 
       <AdminCard className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">الحالة</p>
-            <SelectInput value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectInput>
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-700">الحالة</p>
+            {statusFilters.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStatusFilters([])}
+                className="text-sm font-semibold text-[var(--primary)] transition hover:text-[var(--primary-light)]"
+              >
+                عرض كل الحالات
+              </button>
+            ) : null}
           </div>
+          <div className="flex flex-wrap gap-3">
+            {statusOptions.map((option) => {
+              const checked = statusFilters.includes(option.value);
 
+              return (
+                <label
+                  key={option.value}
+                  className={`inline-flex cursor-pointer items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${checked ? "border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleStatusFilter(option.value)}
+                    className="sr-only"
+                  />
+                  {option.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <p className="mb-2 text-sm font-semibold text-slate-700">المدينة</p>
             <TextInput value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="ابحث باسم المدينة" />

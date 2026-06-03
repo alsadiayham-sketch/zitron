@@ -10,7 +10,6 @@ import {
   LogOut,
   MapPin,
   Pencil,
-  Plus,
   Save,
   ShoppingBag,
   UserCircle2,
@@ -334,15 +333,9 @@ export default function ProfilePage() {
 
         <div className="space-y-6">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-slate-900">
-                <MapPin className="h-5 w-5 text-[var(--primary)]" />
-                <h2 className="text-xl font-bold">العناوين المحفوظة</h2>
-              </div>
-              <button type="button" onClick={resetLocationForm} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--primary)] hover:text-[var(--primary)]">
-                <Plus className="h-4 w-4" />
-                عنوان جديد
-              </button>
+            <div className="mb-5 flex items-center gap-2 text-slate-900">
+              <MapPin className="h-5 w-5 text-[var(--primary)]" />
+              <h2 className="text-xl font-bold">العناوين المحفوظة</h2>
             </div>
 
             <div className="space-y-3">

@@ -105,6 +105,28 @@ export default function AdminSettingsPage() {
         </section>
 
         <AdminCard>
+          <h2 className="text-lg font-bold text-slate-900">بيانات التواصل</h2>
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <div>
+              <FieldLabel>العنوان</FieldLabel>
+              <TextInput value={settings.contactAddress} onChange={(event) => setSettings({ ...settings, contactAddress: event.target.value })} />
+            </div>
+            <div>
+              <FieldLabel>رقم الهاتف</FieldLabel>
+              <TextInput value={settings.contactPhone} onChange={(event) => setSettings({ ...settings, contactPhone: event.target.value })} />
+            </div>
+            <div>
+              <FieldLabel>البريد الإلكتروني</FieldLabel>
+              <TextInput type="email" value={settings.contactEmail} onChange={(event) => setSettings({ ...settings, contactEmail: event.target.value })} />
+            </div>
+            <div>
+              <FieldLabel>ساعات العمل</FieldLabel>
+              <TextInput value={settings.contactWorkHours} onChange={(event) => setSettings({ ...settings, contactWorkHours: event.target.value })} />
+            </div>
+          </div>
+        </AdminCard>
+
+        <AdminCard>
           <h2 className="text-lg font-bold text-slate-900">نبذة عن المتجر</h2>
           <div className="mt-5">
             <FieldLabel>النص التعريفي</FieldLabel>

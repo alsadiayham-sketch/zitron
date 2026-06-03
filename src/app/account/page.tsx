@@ -16,7 +16,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/account/profile");
+      router.replace("/");
     }
   }, [loading, router, user]);
 
