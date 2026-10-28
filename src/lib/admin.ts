@@ -153,6 +153,21 @@ export function createEmptyProduct(): Product {
   };
 }
 
+export function serializeProductForSave(product: Product): Product {
+  const { oldPrice, badge, ...requiredFields } = product;
+  const serialized: Product = { ...requiredFields };
+
+  if (oldPrice !== undefined) {
+    serialized.oldPrice = oldPrice;
+  }
+
+  if (badge?.trim()) {
+    serialized.badge = badge.trim();
+  }
+
+  return serialized;
+}
+
 export function formatCurrency(value: number) {
   return new Intl.NumberFormat("ar-EG", {
     style: "currency",

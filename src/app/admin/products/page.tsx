@@ -12,6 +12,7 @@ import {
   formatCurrency,
   getErrorMessage,
   isValidNonNegativeNumber,
+  serializeProductForSave,
   slugify,
   uploadMultipleImages,
 } from "@/lib/admin";
@@ -148,7 +149,7 @@ export default function AdminProductsPage() {
       .map((value) => value.trim())
       .filter(Boolean);
 
-    const payload: Product = {
+    const payload = serializeProductForSave({
       ...form,
       id: docId,
       price: Number(form.price || 0),
@@ -169,7 +170,7 @@ export default function AdminProductsPage() {
       category: form.category.trim(),
       name: form.name.trim(),
       nameEn: form.nameEn.trim(),
-    };
+    });
 
     try {
       setIsSaving(true);

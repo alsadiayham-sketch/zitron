@@ -76,7 +76,7 @@ export default function Footer() {
               alt="ZITRON"
               width={130}
               height={45}
-              className="h-10 w-auto mb-4 brightness-0 invert"
+              className="h-10 w-auto mb-4"
             />
             <p className="text-white/70 text-sm leading-relaxed mb-6">
               أول علامة تجارية للعناية بالبشرة أنشأها أطباء الجلدية، مستوحاة من

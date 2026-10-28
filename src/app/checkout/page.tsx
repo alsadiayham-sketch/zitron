@@ -681,7 +681,11 @@ export default function CheckoutPage() {
                     <div className={`flex items-center gap-2 ${isInvalid ? "text-rose-800" : "text-sky-800"}`}>
                       <Sparkles className="h-4 w-4" />
                       <div>
-                        <p className="font-bold">{comboOffer?.title ?? "عرض خاص غير متاح"}</p>
+                        <p className="font-bold">
+                          {offersLoading || productsLoading
+                            ? "جاري تحميل تفاصيل العرض..."
+                            : comboOffer?.title ?? "عرض خاص غير متاح"}
+                        </p>
                         {isInvalid ? <p className="mt-1 text-xs font-medium">انتهى العرض أو تغيرت المنتجات المؤهلة.</p> : null}
                       </div>
                     </div>
@@ -752,7 +756,9 @@ export default function CheckoutPage() {
               <span>{formatCurrency(totalPrice)}</span>
             </div>
             <p className="mt-2 text-sm font-medium text-amber-700">
-              {qualifyingFreeShippingOffers.length > 0 ? "هذا الطلب مؤهل للشحن المجاني." : "لا يشمل سعر التوصيل."}
+              {qualifyingFreeShippingOffers.length > 0
+                ? "يشمل الإجمالي توصيلاً مجانياً."
+                : "سعر التوصيل غير مشمول في الإجمالي."}
             </p>
           </div>
 

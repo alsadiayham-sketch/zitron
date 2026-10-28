@@ -70,8 +70,7 @@ function ProductsContent() {
 
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section-specific offers banner - always displayed */}
-          {activeSectionOffers.length > 0 ? (
+          {currentCategoryOffers.length > 0 ? (
             <div className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-l from-orange-500 via-red-500 to-pink-500 p-[2px] shadow-lg shadow-orange-200/40">
               <div className="rounded-[calc(2rem-2px)] bg-white px-6 py-5">
                 <div className="flex items-center gap-3 mb-3">
