@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { addDoc, increment, setDoc } from "firebase/firestore";
+import { addDoc, getOrderTrackingToken, setDoc } from "@/lib/store-data";
 import {
   CheckCircle2,
   Copy,
@@ -21,7 +21,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import ComboOfferModal from "@/components/offers/ComboOfferModal";
 import { formatCurrency } from "@/lib/admin";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import { useOffers, useProducts } from "@/lib/firebase-hooks";
 import {
   CUSTOMER_ADDRESS_STORAGE_KEY,
@@ -76,6 +76,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successOrderId, setSuccessOrderId] = useState("");
+  const [successTrackingToken, setSuccessTrackingToken] = useState("");
   const [copied, setCopied] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<"new" | string>("new");
   const [saveNewAddressPreference, setSaveNewAddressPreference] = useState<"yes" | "no" | null>(null);
@@ -349,9 +350,9 @@ export default function CheckoutPage() {
       setSubmitting(true);
       setError("");
 
-      const orderId = generateOrderId();
+      const requestedOrderId = generateOrderId();
       const orderRef = await addDoc(getCollection("orders"), {
-        orderId,
+        orderId: requestedOrderId,
         items: submittedOrderItems,
         customerName,
         customerPhone,
@@ -376,19 +377,20 @@ export default function CheckoutPage() {
         }
       }
 
+      const canonical = orderRef.data as Partial<AdminOrder>;
       const localOrder: AdminOrder = {
         id: orderRef.id,
-        orderId,
-        items: submittedOrderItems,
-        customerName,
-        customerPhone,
-        customerAddress,
-        notes: formData.notes.trim(),
-        city,
-        total: totalPrice,
-        status: "new",
-        date: new Date().toISOString(),
-        userId: user?.uid,
+        orderId: canonical.orderId || requestedOrderId,
+        items: Array.isArray(canonical.items) ? canonical.items as AdminOrder["items"] : submittedOrderItems,
+        customerName: canonical.customerName || customerName,
+        customerPhone: canonical.customerPhone || customerPhone,
+        customerAddress: canonical.customerAddress || customerAddress,
+        notes: canonical.notes || formData.notes.trim(),
+        city: canonical.city || city,
+        total: Number.isFinite(Number(canonical.total)) ? Number(canonical.total) : totalPrice,
+        status: canonical.status || "new",
+        date: canonical.date || new Date().toISOString(),
+        userId: canonical.userId || user?.uid,
       };
       saveOrderToLocalHistory(localOrder);
 
@@ -412,7 +414,6 @@ export default function CheckoutPage() {
             name: customerName,
             email: profile?.email || user.email || "",
             phone: customerPhone,
-            orders: increment(1),
             ...(nextLocations ? { locations: nextLocations } : {}),
           }, { merge: true });
         } catch {
@@ -422,9 +423,10 @@ export default function CheckoutPage() {
 
       clearCart();
       setSelectedFreeProducts({});
-      setSuccessOrderId(orderId);
-    } catch {
-      setError("تعذر إرسال الطلب الآن. يرجى المحاولة مرة أخرى بعد قليل.");
+      setSuccessOrderId(localOrder.orderId || localOrder.id);
+      setSuccessTrackingToken(getOrderTrackingToken(localOrder.orderId || localOrder.id) ?? "");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "تعذر إرسال الطلب الآن. يرجى المحاولة مرة أخرى بعد قليل.");
     } finally {
       submissionLock.current = false;
       setSubmitting(false);
@@ -454,8 +456,8 @@ export default function CheckoutPage() {
           </div>
           <p className="mt-2 text-sm text-emerald-700/90">احتفظ برقم الطلب لاستخدامه في صفحة التتبع.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href={`/account/orders?orderId=${successOrderId}`} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700">عرض طلباتي</Link>
-            <Link href={`/track?orderId=${successOrderId}`} className="rounded-full border border-emerald-300 bg-white px-6 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100">تتبع الطلب</Link>
+            <Link href={`/account/orders?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700">عرض طلباتي</Link>
+            <Link href={`/track?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="rounded-full border border-emerald-300 bg-white px-6 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100">تتبع الطلب</Link>
           </div>
         </div>
       </section>

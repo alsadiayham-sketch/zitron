@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getDoc, getDocs, limit, query, where } from "firebase/firestore";
+import { getDoc, getDocs, limit, query, where } from "@/lib/store-data";
 import { Printer, Search } from "lucide-react";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import { readAdminSession, type AdminOrder } from "@/lib/admin";
 import { AdminCard, AdminEmptyState, AdminPageHeader, TextInput } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";

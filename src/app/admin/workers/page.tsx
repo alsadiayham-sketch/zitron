@@ -1,24 +1,22 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
-import { KeyRound, Pencil, Trash2 } from "lucide-react";
-import { getAuthErrorMessage } from "@/context/AuthContext";
+import { deleteDoc, onSnapshot, setDoc } from "@/lib/store-data";
+import { Pencil, Trash2 } from "lucide-react";
 import { AdminCard, AdminEmptyState, AdminPageHeader, FieldLabel, LoadingState, TextInput } from "@/components/admin/AdminUI";
 import { formatDate, getErrorMessage, type WorkerRecord } from "@/lib/admin";
-import { auth, getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 
 type WorkerForm = {
   name: string;
   email: string;
-  password: string;
+  newPassword: string;
 };
 
 const emptyWorker: WorkerForm = {
   name: "",
   email: "",
-  password: "",
+  newPassword: "",
 };
 
 function createWorkerId() {
@@ -33,7 +31,6 @@ export default function AdminWorkersPage() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null);
-  const [resettingWorkerId, setResettingWorkerId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -65,7 +62,7 @@ export default function AdminWorkersPage() {
     setForm({
       name: worker.name,
       email: worker.email,
-      password: worker.password,
+      newPassword: "",
     });
     setEditingWorkerId(worker.id);
     setError("");
@@ -75,8 +72,8 @@ export default function AdminWorkersPage() {
   const saveWorker = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      setError("يرجى تعبئة جميع حقول العامل.");
+    if (!form.name.trim() || !form.email.trim() || (!editingWorkerId && form.newPassword.length < 12)) {
+      setError(editingWorkerId ? "يرجى تعبئة الاسم والبريد الإلكتروني." : "يرجى إدخال كلمة مرور جديدة من 12 حرفاً على الأقل.");
       return;
     }
     const email = form.email.trim().toLowerCase();
@@ -101,9 +98,9 @@ export default function AdminWorkersPage() {
         {
           name: form.name.trim(),
           email,
-          password: form.password,
           role: "worker",
           createdAt: existingWorker?.createdAt ?? new Date().toISOString(),
+          ...(form.newPassword ? { newPassword: form.newPassword, disabled: false } : {}),
         },
         { merge: true }
       );
@@ -130,24 +127,6 @@ export default function AdminWorkersPage() {
     }
   };
 
-  const resetWorkerPassword = async (worker: WorkerRecord) => {
-    if (!window.confirm(`هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى ${worker.email}؟`)) {
-      return;
-    }
-
-    try {
-      setResettingWorkerId(worker.id);
-      setFeedback("");
-      setError("");
-      await sendPasswordResetEmail(auth, worker.email);
-      setFeedback(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${worker.email}.`);
-    } catch (nextError) {
-      setError(getAuthErrorMessage(nextError));
-    } finally {
-      setResettingWorkerId(null);
-    }
-  };
-
   if (loading) {
     return <LoadingState label="جاري تحميل العمال..." />;
   }
@@ -163,7 +142,7 @@ export default function AdminWorkersPage() {
           <form onSubmit={saveWorker} className="space-y-4">
             <div><FieldLabel>اسم العامل</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم الكامل" required /></div>
             <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="worker@email.com" required /></div>
-            <div><FieldLabel>كلمة المرور</FieldLabel><TextInput type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="كلمة مرور العامل" required autoComplete="new-password" /></div>
+            <div><FieldLabel>{editingWorkerId ? "كلمة مرور جديدة (مطلوبة لتفعيل الحساب المعلّق)" : "كلمة المرور"}</FieldLabel><TextInput type="password" value={form.newPassword} onChange={(event) => setForm({ ...form, newPassword: event.target.value })} placeholder={editingWorkerId ? "اتركها فارغة إن كان الحساب مفعّلاً" : "12 حرفاً على الأقل"} required={!editingWorkerId || Boolean(editingWorkerId && workers.find((worker) => worker.id === editingWorkerId)?.disabled)} minLength={editingWorkerId ? undefined : 12} autoComplete="new-password" /></div>
             {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="submit" disabled={saving} className="w-full rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? (editingWorkerId ? "جاري الحفظ..." : "جاري الإضافة...") : (editingWorkerId ? "حفظ التعديلات" : "إضافة عامل")}</button>
@@ -192,15 +171,12 @@ export default function AdminWorkersPage() {
                     <tr key={worker.id}>
                       <td className="px-4 py-4 font-semibold text-slate-900">{worker.name}</td>
                       <td className="px-4 py-4">{worker.email}</td>
-                      <td className="px-4 py-4"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">عامل</span></td>
+                      <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${worker.disabled ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{worker.disabled ? "معلّق حتى تعيين كلمة مرور جديدة" : "عامل"}</span></td>
                       <td className="px-4 py-4">{formatDate(worker.createdAt)}</td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap justify-end gap-2">
                           <button type="button" onClick={() => openEdit(worker)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-slate-700 transition hover:bg-slate-100" aria-label="تعديل العامل">
                             <Pencil className="h-4 w-4" />تعديل
-                          </button>
-                          <button type="button" onClick={() => void resetWorkerPassword(worker)} disabled={resettingWorkerId === worker.id} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 px-3 py-2 text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60" aria-label="إعادة تعيين كلمة المرور">
-                            <KeyRound className="h-4 w-4" />إعادة تعيين
                           </button>
                           <button type="button" onClick={() => void removeWorker(worker)} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-rose-700 transition hover:bg-rose-50" aria-label="حذف العامل">
                             <Trash2 className="h-4 w-4" />حذف

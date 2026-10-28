@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail, Phone, MapPin } from "lucide-react";
-import { onSnapshot, setDoc } from "firebase/firestore";
-import { getDocRef } from "@/lib/firebase";
+import { onSnapshot, setDoc } from "@/lib/store-data";
+import { getDocRef } from "@/lib/store-data";
 import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
 
 export default function Footer() {
@@ -25,8 +25,7 @@ export default function Footer() {
       setSubscriptionResult("تم تسجيل اشتراكك بنجاح.");
       setEmail("");
     } catch (error) {
-      console.error("Newsletter subscription failed:", error);
-      setSubscriptionResult("تعذر تسجيل الاشتراك. يرجى المحاولة مجدداً.");
+      setSubscriptionResult(error instanceof Error ? error.message : "تعذر تسجيل الاشتراك. يرجى المحاولة مجدداً.");
     } finally {
       setSubscribing(false);
     }

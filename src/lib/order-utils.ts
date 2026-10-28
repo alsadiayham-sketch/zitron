@@ -1,4 +1,4 @@
-import type { DocumentData } from "firebase/firestore";
+import { isDocumentData, type DocumentData } from "@/lib/store-data";
 import { formatCurrency, formatDate, ORDER_STATUS_LABELS, type AdminOrder, type OrderStatus } from "@/lib/admin";
 
 export const CUSTOMER_NAME_STORAGE_KEY = "zitron-customer-name";
@@ -49,27 +49,29 @@ export function parseOrderStatus(value: unknown): OrderStatus {
 }
 
 export function normalizeOrder(docId: string, data: DocumentData): AdminOrder {
-  const items = Array.isArray(data.items)
-    ? data.items.flatMap((item, index) => {
-        const quantity = Math.floor(Number(item?.quantity));
-        const price = Number(item?.price);
+  const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
+  const items = rawItems
+    .flatMap((item, index) => {
+        const itemRecord = isDocumentData(item) ? item : {};
+        const quantity = Math.floor(Number(itemRecord.quantity));
+        const price = Number(itemRecord.price);
         if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price < 0) {
           return [];
         }
 
         return [{
-          id: typeof item?.id === "string" ? item.id : `${docId}-${index}`,
-          name: typeof item?.name === "string" && item.name.trim() ? item.name : "منتج بدون اسم",
+          id: typeof itemRecord.id === "string" ? itemRecord.id : `${docId}-${index}`,
+          name: typeof itemRecord.name === "string" && itemRecord.name.trim() ? itemRecord.name : "منتج بدون اسم",
           quantity,
           price,
-          image: typeof item?.image === "string" ? item.image : undefined,
+          image: typeof itemRecord.image === "string" ? itemRecord.image : undefined,
         }];
       })
-    : [];
+    ;
 
   const customerAddress = typeof data.customerAddress === "string" ? data.customerAddress : "";
   const city = typeof data.city === "string" && data.city.trim() ? data.city.trim() : extractCityFromAddress(customerAddress);
-  const calculatedTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const calculatedTotal = items.reduce((sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0);
   const storedTotal = Number(data.total);
   const total = Number.isFinite(storedTotal) && storedTotal >= 0 ? storedTotal : calculatedTotal;
   const dateValue = typeof data.date === "string" && Number.isFinite(Date.parse(data.date))
@@ -101,8 +103,8 @@ export function parseStoredOrders(value: string | null): AdminOrder[] {
 
     return parsed
       .flatMap((order, index) => {
-        if (!order || typeof order !== "object") return [];
-        const data = order as DocumentData;
+        if (!isDocumentData(order)) return [];
+        const data = order;
         const id = typeof data.id === "string" && data.id.trim()
           ? data.id
           : typeof data.orderId === "string" && data.orderId.trim()

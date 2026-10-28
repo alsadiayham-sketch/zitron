@@ -1,10 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { initializeApp } from "firebase/app";
-import { doc, getFirestore, runTransaction, terminate } from "firebase/firestore";
+import { mkdir, writeFile } from "node:fs/promises";
+import { createD1RecordIfAbsent } from "./d1-data.mjs";
 
-const source = await readFile(new URL("../src/lib/firebase.ts", import.meta.url), "utf8");
-const config = Object.fromEntries([...source.matchAll(/^\s+(\w+): "([^"]+)",?$/gm)].map((match) => [match[1], match[2]]));
-const db = getFirestore(initializeApp(config));
 const apply = process.argv.includes("--apply");
 const now = new Date().toISOString();
 const categories = [
@@ -73,7 +69,7 @@ records.push(
   { collection: "offers", id: "demo-shipping", data: { type: "free_shipping", title: "عرض تجريبي: توصيل مجاني لطلبات النماذج من 100 شيكل", minAmount: 100, targetSections: ["deodorants", "feet"], createdAt: now, isDemo: true } },
 );
 
-try {
+async function main() {
   await mkdir(new URL("../public/images/demo/", import.meta.url), { recursive: true });
   for (const [index, product] of products.entries()) {
     const color = ["#1b3a6b", "#285747", "#633d65", "#70482f"][index % 4];
@@ -83,15 +79,9 @@ try {
   let created = 0;
   for (const record of records) {
     if (!apply) continue;
-    const reference = doc(db, "projects", "zitron", record.collection, record.id);
-    const inserted = await runTransaction(db, async transaction => {
-      if ((await transaction.get(reference)).exists()) return false;
-      transaction.set(reference, record.data);
-      return true;
-    });
+    const inserted = await createD1RecordIfAbsent(record.collection, record.id, record.data);
     if (inserted) created++;
   }
   console.log(JSON.stringify({ mode: apply ? "apply" : "dry-run", planned: records.length, created, products: products.length, customers: 12, orders: 24, offers: 3 }));
-} finally {
-  await terminate(db);
 }
+await main();

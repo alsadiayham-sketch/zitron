@@ -2,9 +2,10 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { deleteDoc, onSnapshot, setDoc } from "@/lib/store-data";
 import { Eye, KeyRound, Pencil, Trash2 } from "lucide-react";
-import { auth, getCollection, getDocRef } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import { formatDate, getErrorMessage, type AdminUser } from "@/lib/admin";
 import { getAuthErrorMessage } from "@/context/AuthContext";
 import {

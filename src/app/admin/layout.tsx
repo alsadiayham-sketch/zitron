@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getDocs, limit, onSnapshot, query, where } from "firebase/firestore";
+import { onSnapshot, query, where } from "@/lib/store-data";
 import {
   LayoutDashboard,
   Package,
@@ -19,18 +19,14 @@ import {
   UserCog,
   type LucideIcon,
 } from "lucide-react";
-import { getCollection } from "@/lib/firebase";
+import { getCollection } from "@/lib/store-data";
 import {
   clearAdminSession,
   readAdminSession,
   subscribeToAdminAuth,
   type AdminRole,
-  type WorkerRecord,
   writeAdminSession,
 } from "@/lib/admin";
-
-const ADMIN_USERNAME = "zitron";
-const ADMIN_PASSWORD = "5555";
 
 type NavItem = {
   href: string;
@@ -82,23 +78,19 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       setSubmitting(true);
       setError("");
 
-      if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        writeAdminSession({ role: "admin", name: "مدير النظام" });
+      const response = await fetch("/api/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-Zitron-Request": "1" },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const payload = await response.json().catch(() => ({})) as { session?: { role?: AdminRole; name?: string; email?: string }; error?: string };
+      if (response.ok && payload.session && (payload.session.role === "admin" || payload.session.role === "worker") && payload.session.name) {
+        writeAdminSession({ role: payload.session.role, name: payload.session.name, email: payload.session.email });
         onLogin();
         return;
       }
-
-      const snapshot = await getDocs(query(getCollection("workers"), where("email", "==", username.trim().toLowerCase()), limit(1)));
-      const workerDoc = snapshot.docs[0];
-      const worker = workerDoc ? ({ ...(workerDoc.data() as Omit<WorkerRecord, "id">), id: workerDoc.id } as WorkerRecord) : null;
-
-      if (worker && worker.password === password) {
-        writeAdminSession({ role: "worker", name: worker.name, email: worker.email });
-        onLogin();
-        return;
-      }
-
-      setError("بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.");
+      setError(payload.error || "بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.");
     } catch {
       setError("تعذر تسجيل الدخول حالياً. حاول مرة أخرى بعد قليل.");
     } finally {
@@ -150,8 +142,35 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const isReady = useSyncExternalStore(() => () => undefined, () => true, () => false);
   const session = useSyncExternalStore(subscribeToAdminAuth, () => readAdminSession(), () => null);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/session", { credentials: "same-origin", headers: { "X-Zitron-Request": "1" } })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({})) as { session?: { role?: AdminRole; name?: string; email?: string } | null };
+        if (!active) return;
+        if (response.ok && payload.session && (payload.session.role === "admin" || payload.session.role === "worker") && payload.session.name) {
+          writeAdminSession({ role: payload.session.role, name: payload.session.name, email: payload.session.email });
+        } else {
+          clearAdminSession();
+        }
+      })
+      .catch(() => active && clearAdminSession())
+      .finally(() => active && setSessionChecked(true));
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const expire = () => {
+      clearAdminSession();
+      setSessionChecked(true);
+    };
+    window.addEventListener("zitron-admin-session-expired", expire);
+    return () => window.removeEventListener("zitron-admin-session-expired", expire);
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -185,12 +204,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return session?.role === "worker" ? "الطلبات" : "لوحة التحكم";
   }, [pathname, session?.role, visibleNavItems]);
 
-  const logout = () => {
+  const logout = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "same-origin", headers: { "X-Zitron-Request": "1" } }).catch(() => undefined);
     clearAdminSession();
     setMobileMenuOpen(false);
   };
 
-  if (!isReady) {
+  if (!isReady || !sessionChecked) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-500">جاري تجهيز لوحة الإدارة...</div>;
   }
 
@@ -227,7 +247,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               })}
             </nav>
 
-            <button type="button" onClick={logout} className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+            <button type="button" onClick={() => void logout()} className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
               <LogOut className="h-4 w-4" />تسجيل الخروج
             </button>
           </div>

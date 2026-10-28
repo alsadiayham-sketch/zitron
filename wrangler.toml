@@ -1,0 +1,8 @@
+name = "zitron"
+pages_build_output_dir = "./out"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zitron-secure-db"
+database_id = "29f4083a-b3af-454e-9905-e8134987bbab"

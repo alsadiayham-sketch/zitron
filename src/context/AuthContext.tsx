@@ -10,8 +10,8 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
-import { onSnapshot, setDoc } from "firebase/firestore";
-import { auth, getDocRef } from "@/lib/firebase";
+import { getDocRef, onSnapshot, setDoc } from "@/lib/store-data";
+import { auth } from "@/lib/firebase";
 import type { SavedLocation, UserProfileDoc } from "@/lib/admin";
 
 type AuthContextValue = {
@@ -19,6 +19,7 @@ type AuthContextValue = {
   loading: boolean;
   profile: UserProfileDoc | null;
   profileLoading: boolean;
+  profileError: string;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfileDoc | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       setProfileLoading(Boolean(nextUser));
       setProfile(null);
+      setProfileError("");
     });
     return () => unsubscribe();
   }, []);
@@ -101,10 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getDocRef("users", user.uid),
       (snapshot) => {
         setProfile(snapshot.exists() ? normalizeProfile(user, snapshot.data()) : normalizeProfile(user, null));
+        setProfileError("");
         setProfileLoading(false);
       },
-      () => {
-        setProfile(normalizeProfile(user, null));
+      (error) => {
+        setProfile(null);
+        setProfileError(error.message || "تعذر تحميل بيانات الحساب.");
         setProfileLoading(false);
       }
     );
@@ -116,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     profile,
     profileLoading,
+    profileError,
     signIn: async (email, password) => { await signInWithEmailAndPassword(auth, email.trim(), password); },
     signUp: async (email, password, name, phone) => {
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -124,13 +130,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: credential.user.email ?? email.trim(),
         phone: phone.trim(),
         createdAt: new Date().toISOString(),
-        orders: 0,
         locations: [],
-      });
+      }, { merge: true });
     },
     signOut: async () => { await firebaseSignOut(auth); },
     resetPassword: async (email) => { await sendPasswordResetEmail(auth, email.trim()); },
-  }), [loading, profile, profileLoading, user]);
+  }), [loading, profile, profileError, profileLoading, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

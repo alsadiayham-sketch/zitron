@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
+import { onSnapshot } from "@/lib/store-data";
 import { Boxes, ShoppingCart, Wallet, UsersRound } from "lucide-react";
-import { getCollection } from "@/lib/firebase";
+import { getCollection } from "@/lib/store-data";
 import { formatCurrency, formatDate, type AdminOrder, type AdminUser } from "@/lib/admin";
 import { AdminCard, AdminEmptyState, AdminPageHeader, LoadingState, StatusBadge } from "@/components/admin/AdminUI";
-import type { Product } from "@/lib/types";
 
 type DashboardOrder = AdminOrder & { isDemo?: boolean };
 
 export default function AdminDashboardPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [productIds, setProductIds] = useState<string[]>([]);
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +30,7 @@ export default function AdminDashboardPage() {
     const stopProducts = onSnapshot(
       getCollection("products"),
       (snapshot) => {
-        setProducts(snapshot.docs.map((doc) => ({ ...(doc.data() as Product), id: doc.id })));
+        setProductIds(snapshot.docs.map((doc) => doc.id));
         completeSource();
       },
       handleError
@@ -94,7 +93,7 @@ export default function AdminDashboardPage() {
         {[
           {
             title: "إجمالي المنتجات",
-            value: products.length.toString(),
+            value: productIds.length.toString(),
             icon: Boxes,
             accent: "bg-sky-100 text-sky-700",
           },

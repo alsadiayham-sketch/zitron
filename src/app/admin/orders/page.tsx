@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { onSnapshot, updateDoc } from "firebase/firestore";
+import { onSnapshot, updateDoc } from "@/lib/store-data";
 import { Eye, Printer } from "lucide-react";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import { formatCurrency, formatDate, readAdminSession, type AdminOrder, type OrderStatus } from "@/lib/admin";
 import { AdminCard, AdminEmptyState, AdminModal, AdminPageHeader, LoadingState, StatusBadge } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";

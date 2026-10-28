@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
-import { getCollection } from "@/lib/firebase";
+import { onSnapshot } from "@/lib/store-data";
+import { getCollection } from "@/lib/store-data";
 import { isOfferActive } from "@/lib/offers";
 import type { Offer } from "@/lib/types";
 

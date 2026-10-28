@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useMemo, useState, useEffect } from "react";
-import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { deleteDoc, onSnapshot, setDoc } from "@/lib/store-data";
 import { CheckSquare, Pencil, Plus, Square, Tag, Trash2 } from "lucide-react";
 import {
   AdminCard,
@@ -16,7 +16,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { formatCurrency, getErrorMessage, isValidNonNegativeNumber, slugify } from "@/lib/admin";
 import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "@/lib/categories";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import { getOfferSectionLabel, isOfferActive } from "@/lib/offers";
 import type { Offer, OfferType, Product } from "@/lib/types";
 

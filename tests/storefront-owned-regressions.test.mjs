@@ -65,7 +65,12 @@ const cart = loadTypeScriptModule("src/context/CartContext.tsx", {
   },
 });
 
+const storeData = loadTypeScriptModule("src/lib/store-data.ts", {
+  "@/lib/firebase": { auth: {} },
+});
+
 const orders = loadTypeScriptModule("src/lib/order-utils.ts", {
+  "@/lib/store-data": storeData,
   "@/lib/admin": {
     formatCurrency: (value) => String(value),
     formatDate: (value) => String(value),

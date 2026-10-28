@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { deleteDoc, onSnapshot, setDoc } from "@/lib/store-data";
 import { Pencil, Plus, Trash2, Upload, ImagePlus } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 import {
   CATEGORY_OPTIONS,
   createEmptyProduct,
@@ -206,7 +206,7 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="إدارة المنتجات"
-        description="أضف المنتجات، حدّث بياناتها، وارفع الصور إلى ImgBB مباشرة من لوحة الإدارة."
+        description="أضف المنتجات، حدّث بياناتها، وارفع الصور بأمان مباشرة من لوحة الإدارة."
         action={
           <button
             type="button"

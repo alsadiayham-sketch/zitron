@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword } from "firebase/auth";
-import { setDoc } from "firebase/firestore";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { setDoc } from "@/lib/store-data";
 import {
   LoaderCircle,
   LogOut,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { getAuthErrorMessage, useAuth } from "@/context/AuthContext";
 import type { SavedLocation } from "@/lib/admin";
-import { getDocRef } from "@/lib/firebase";
+import { getDocRef } from "@/lib/store-data";
 
 const emptyLocationForm = {
   label: "",
@@ -32,12 +32,11 @@ function generateLocationId() {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading, profile, profileLoading, signOut } = useAuth();
+  const { user, loading, profile, profileError, profileLoading, signOut } = useAuth();
   const [detailsForm, setDetailsForm] = useState({
     name: "",
     email: "",
     phone: "",
-    currentPassword: "",
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -71,7 +70,6 @@ export default function ProfilePage() {
         name: profile.name || "",
         email: profile.email || user?.email || "",
         phone: profile.phone || "",
-        currentPassword: "",
       }));
     });
 
@@ -118,7 +116,6 @@ export default function ProfilePage() {
       setError("");
       setMessage("");
 
-      const nextEmail = detailsForm.email.trim();
       const nextName = detailsForm.name.trim();
       const nextPhone = detailsForm.phone.trim().replace(/[\s()-]/g, "");
       if (nextName.length < 2) {
@@ -129,25 +126,12 @@ export default function ProfilePage() {
         setError("يرجى إدخال رقم هاتف صالح من 7 إلى 15 رقماً.");
         return;
       }
-      if (nextEmail && nextEmail !== user.email) {
-        if (!detailsForm.currentPassword.trim()) {
-          setError("أدخل كلمة المرور الحالية لتحديث البريد الإلكتروني.");
-          return;
-        }
-
-        const credential = EmailAuthProvider.credential(user.email || nextEmail, detailsForm.currentPassword);
-        await reauthenticateWithCredential(user, credential);
-        await updateEmail(user, nextEmail);
-      }
-
       await setDoc(getDocRef("users", user.uid), {
         name: nextName,
-        email: nextEmail,
         phone: nextPhone,
         createdAt: profile?.createdAt || new Date().toISOString(),
       }, { merge: true });
 
-      setDetailsForm((prev) => ({ ...prev, currentPassword: "" }));
       setMessage("تم تحديث بيانات الملف الشخصي بنجاح.");
     } catch (nextError) {
       setError(getAuthErrorMessage(nextError));
@@ -284,6 +268,7 @@ export default function ProfilePage() {
       </div>
 
       {message ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
+      {profileError ? <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{profileError}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
         <div className="space-y-6">
@@ -299,15 +284,11 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">البريد الإلكتروني</label>
-                <input type="email" value={detailsForm.email} onChange={(event) => setDetailsForm({ ...detailsForm, email: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <input type="email" value={detailsForm.email} readOnly aria-readonly="true" className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 outline-none" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">رقم الهاتف</label>
                 <input type="tel" value={detailsForm.phone} onChange={(event) => setDetailsForm({ ...detailsForm, phone: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور الحالية (مطلوبة عند تغيير البريد)</label>
-                <input type="password" value={detailsForm.currentPassword} onChange={(event) => setDetailsForm({ ...detailsForm, currentPassword: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="••••••••" />
               </div>
               {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
               <button type="submit" disabled={savingDetails} className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">

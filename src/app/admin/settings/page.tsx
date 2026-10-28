@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { onSnapshot, setDoc } from "firebase/firestore";
+import { onSnapshot, setDoc } from "@/lib/store-data";
 import { DEFAULT_SETTINGS, getErrorMessage, isValidHttpUrl, type AdminSettings } from "@/lib/admin";
-import { getDocRef } from "@/lib/firebase";
+import { getDocRef } from "@/lib/store-data";
 import {
   AdminCard,
   AdminPageHeader,

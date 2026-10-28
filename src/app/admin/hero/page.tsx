@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { deleteDoc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, onSnapshot, setDoc, writeBatch } from "@/lib/store-data";
 import { ArrowDownUp, Pencil, Plus, Trash2, Upload, Video } from "lucide-react";
-import { getCollection, getDocRef, rawDb } from "@/lib/firebase";
-import { getErrorMessage, isValidHttpUrl, slugify, uploadImageToImgbb, type AdminHeroSlide } from "@/lib/admin";
+import { getCollection, getDocRef } from "@/lib/store-data";
+import { getErrorMessage, isValidHttpUrl, slugify, uploadImage, type AdminHeroSlide } from "@/lib/admin";
 import {
   AdminCard,
   AdminEmptyState,
@@ -80,7 +80,7 @@ export default function AdminHeroPage() {
     try {
       setIsUploading(true);
       setFormError("");
-      const url = await uploadImageToImgbb(file);
+      const url = await uploadImage(file);
       setForm((current) => ({ ...current, type: "image", url }));
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "تعذر رفع الصورة.");
@@ -124,12 +124,10 @@ export default function AdminHeroPage() {
       const currentSlide = slides.find((slide) => slide.id === docId);
       const conflictingSlide = slides.find((slide) => slide.id !== docId && slide.order === payload.order);
       if (conflictingSlide) {
-        const batch = writeBatch(rawDb);
-        batch.set(getDocRef("heroDisplay", docId), payload);
-        batch.update(getDocRef("heroDisplay", conflictingSlide.id), {
-          order: currentSlide?.order ?? slides.length + 1,
-        });
-        await batch.commit();
+        await writeBatch([
+          { ref: getDocRef("heroDisplay", docId), data: payload },
+          { ref: getDocRef("heroDisplay", conflictingSlide.id), data: { order: currentSlide?.order ?? slides.length + 1 }, merge: true },
+        ]);
       } else {
         await setDoc(getDocRef("heroDisplay", docId), payload);
       }
@@ -157,12 +155,10 @@ export default function AdminHeroPage() {
     try {
       setFormError("");
       const conflictingSlide = slides.find((item) => item.id !== slide.id && item.order === newOrder);
-      const batch = writeBatch(rawDb);
-      batch.update(getDocRef("heroDisplay", slide.id), { order: newOrder });
-      if (conflictingSlide) {
-        batch.update(getDocRef("heroDisplay", conflictingSlide.id), { order: slide.order });
-      }
-      await batch.commit();
+      await writeBatch([
+        { ref: getDocRef("heroDisplay", slide.id), data: { order: newOrder }, merge: true },
+        ...(conflictingSlide ? [{ ref: getDocRef("heroDisplay", conflictingSlide.id), data: { order: slide.order }, merge: true }] : []),
+      ]);
     } catch (error) {
       setFormError(getErrorMessage(error, "تعذر تحديث ترتيب الشريحة حالياً."));
     }
@@ -285,7 +281,7 @@ export default function AdminHeroPage() {
           }
         }}
         title={isEditing ? "تعديل الشريحة" : "إضافة شريحة جديدة"}
-        description="يمكنك استخدام صورة مرفوعة إلى ImgBB أو رابط فيديو مباشر للشريحة."
+        description="ارفع صورة آمنة إلى المتجر أو أضف رابط فيديو مباشر للشريحة."
       >
         <form onSubmit={saveSlide} className="space-y-6">
           <div className="grid gap-5 md:grid-cols-2">
@@ -322,7 +318,7 @@ export default function AdminHeroPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <FieldLabel>رفع صورة</FieldLabel>
-                  <p className="text-xs text-slate-500">سيتم رفع الصورة إلى ImgBB واستخدام الرابط الناتج تلقائياً.</p>
+                  <p className="text-xs text-slate-500">سيتم ضغط الصورة ورفعها بأمان إلى المتجر.</p>
                 </div>
                 <label className={`inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 ${isUploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                   <Upload className="h-4 w-4" />

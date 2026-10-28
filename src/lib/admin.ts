@@ -63,9 +63,9 @@ export interface WorkerRecord {
   id: string;
   name: string;
   email: string;
-  password: string;
   role: "worker";
   createdAt: string;
+  disabled?: boolean;
 }
 
 export interface AdminSession {
@@ -74,7 +74,6 @@ export interface AdminSession {
   email?: string;
 }
 
-export const ADMIN_SESSION_STORAGE_KEY = "zitron_admin";
 export const ADMIN_AUTH_EVENT = "zitron-admin-auth-change";
 
 export interface AdminSettings {
@@ -233,110 +232,68 @@ export function notifyAdminAuthChange() {
   }
 }
 
-let _cachedSessionRaw: string | null = null;
 let _cachedSession: AdminSession | null = null;
 
 export function readAdminSession(): AdminSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
-
-  // Return cached result if sessionStorage value hasn't changed
-  if (raw === _cachedSessionRaw) {
-    return _cachedSession;
-  }
-
-  _cachedSessionRaw = raw;
-
-  if (!raw) {
-    _cachedSession = null;
-    return null;
-  }
-
-  if (raw === "true") {
-    _cachedSession = { role: "admin", name: "مدير النظام" };
-    return _cachedSession;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<AdminSession>;
-    if ((parsed.role === "admin" || parsed.role === "worker") && typeof parsed.name === "string") {
-      _cachedSession = {
-        role: parsed.role,
-        name: parsed.name,
-        email: typeof parsed.email === "string" ? parsed.email : undefined,
-      };
-      return _cachedSession;
-    }
-  } catch {
-    _cachedSession = null;
-    return null;
-  }
-
-  _cachedSession = null;
-  return null;
+  return _cachedSession;
 }
 
 export function writeAdminSession(session: AdminSession) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
+  _cachedSession = session;
   notifyAdminAuthChange();
 }
 
 export function clearAdminSession() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+  _cachedSession = null;
   notifyAdminAuthChange();
 }
 
-function readFileAsBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        reject(new Error("تعذر قراءة الملف."));
-        return;
-      }
-      resolve(result.split(",")[1] ?? result);
-    };
-    reader.onerror = () => reject(new Error("فشل رفع الصورة."));
-    reader.readAsDataURL(file);
-  });
+function canvasBlob(canvas: HTMLCanvasElement, type: "image/jpeg" | "image/webp" | "image/png", quality: number) {
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("تعذر تجهيز الصورة.")), type, quality));
 }
 
-export async function uploadImageToImgbb(file: File) {
-  const base64 = await readFileAsBase64(file);
-  const formData = new FormData();
-  formData.append("image", base64);
-  formData.append("name", file.name);
-
-  const response = await fetch(
-    "https://api.imgbb.com/1/upload?key=d14f65fb697224837b49489e5f8d8b57",
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  const payload = await response.json();
-
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error?.message || "فشل رفع الصورة إلى ImgBB.");
+async function prepareImage(file: File) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    throw new Error("يرجى اختيار صورة JPEG أو PNG أو WebP فقط.");
   }
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const element = new Image();
+    element.onload = () => { URL.revokeObjectURL(url); resolve(element); };
+    element.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الصورة.")); };
+    element.src = url;
+  });
+  const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const type: "image/jpeg" | "image/webp" | "image/png" = file.type === "image/png" ? "image/png" : "image/webp";
+  for (let quality = 0.9; quality >= 0.45; quality -= 0.1) {
+    const blob = await canvasBlob(canvas, type, quality);
+    if (blob.size <= 750 * 1024) return blob;
+  }
+  throw new Error("الصورة كبيرة جداً بعد الضغط. اختر صورة أصغر من 750 كيلوبايت.");
+}
 
-  return payload.data.url as string;
+export async function uploadImage(file: File) {
+  const blob = await prepareImage(file);
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result.split(",")[1] ?? "") : reject(new Error("تعذر قراءة الصورة."));
+    reader.onerror = () => reject(new Error("تعذر قراءة الصورة."));
+    reader.readAsDataURL(blob);
+  });
+  const { apiRequest } = await import("@/lib/store-data");
+  const payload = await apiRequest("/api/upload", {
+    method: "POST",
+    body: JSON.stringify({ image: base64, mimeType: blob.type }),
+  }) as { url?: string };
+  if (!payload.url) throw new Error("تعذر رفع الصورة.");
+  return payload.url;
 }
 
 export async function uploadMultipleImages(files: File[]) {
-  const urls = await Promise.all(files.map((file) => uploadImageToImgbb(file)));
+  const urls = await Promise.all(files.map((file) => uploadImage(file)));
   return urls.filter(Boolean);
 }

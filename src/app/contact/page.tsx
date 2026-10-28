@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addDoc, onSnapshot } from "firebase/firestore";
+import { addDoc, onSnapshot } from "@/lib/store-data";
 import { Mail, Phone, MapPin, Send, Clock } from "lucide-react";
 import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 
 export default function ContactPage() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
@@ -43,8 +43,7 @@ export default function ContactPage() {
       setResult("تم استلام رسالتك بنجاح.");
       setFormData({ name: "", email: "", subject: "", message: "" });
     } catch (error) {
-      console.error("Contact message failed:", error);
-      setResult("تعذر إرسال الرسالة. حاول مجدداً أو تواصل عبر الهاتف.");
+      setResult(error instanceof Error ? error.message : "تعذر إرسال الرسالة. حاول مجدداً أو تواصل عبر الهاتف.");
     } finally {
       setSending(false);
     }

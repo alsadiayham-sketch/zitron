@@ -1,11 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { onSnapshot, query, orderBy, getDocs } from "firebase/firestore";
-import { getCollection, getDocRef } from "./firebase";
+import { onSnapshot, query, orderBy, getDocs } from "@/lib/store-data";
+import { getCollection, getDocRef } from "./store-data";
 import type { Offer, Product, HeroSlide, SiteSettings } from "./types";
 
 export type { HeroSlide, SiteSettings };
+
+function readSetting(data: Record<string, unknown>, key: keyof SiteSettings) {
+  const value = data[key];
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeSettings(data: Record<string, unknown>): SiteSettings {
+  return {
+    storeName: readSetting(data, "storeName"),
+    storeNameAr: readSetting(data, "storeNameAr"),
+    heroTitle: readSetting(data, "heroTitle"),
+    heroSubtitle: readSetting(data, "heroSubtitle"),
+    aboutText: readSetting(data, "aboutText"),
+    currency: readSetting(data, "currency"),
+    currencyName: readSetting(data, "currencyName"),
+    whatsappNumber: readSetting(data, "whatsappNumber"),
+    instagramLink: readSetting(data, "instagramLink"),
+  };
+}
 
 // Hook to get products from Firebase in real-time
 export function useProducts() {
@@ -103,8 +122,9 @@ export function useSettings() {
     const unsubscribe = onSnapshot(
       getDocRef("settings", "config"),
       (doc) => {
-        if (doc.exists()) {
-          setSettings(doc.data() as SiteSettings);
+        const data = doc.data();
+        if (doc.exists() && data) {
+          setSettings(normalizeSettings(data));
         }
         setLoading(false);
       },

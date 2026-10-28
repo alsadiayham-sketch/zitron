@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getDocs, limit, orderBy, query, startAfter, type DocumentData, type QueryConstraint, type QueryDocumentSnapshot } from "firebase/firestore";
+import { getDocs, limit, orderBy, query, startAfter, type DocumentData, type QueryConstraint, type QueryDocumentSnapshot } from "@/lib/store-data";
 import { Printer } from "lucide-react";
-import { getCollection } from "@/lib/firebase";
+import { getCollection } from "@/lib/store-data";
 import { formatCurrency, formatDate, readAdminSession, type AdminOrder, type OrderStatus } from "@/lib/admin";
 import { AdminCard, AdminEmptyState, AdminModal, AdminPageHeader, LoadingState, SelectInput, StatusBadge, TextInput } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";

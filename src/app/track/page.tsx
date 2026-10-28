@@ -1,23 +1,20 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { getDocs, limit, query, where } from "firebase/firestore";
+import { getDocs, limit, query, setOrderTrackingTokenForLookup, where } from "@/lib/store-data";
 import { Search } from "lucide-react";
 import { StatusBadge } from "@/components/admin/AdminUI";
-import { getCollection } from "@/lib/firebase";
+import { getCollection } from "@/lib/store-data";
 import { formatCurrency, formatDate, type AdminOrder } from "@/lib/admin";
 import {
   DEMO_ORDERS,
   getOrderDisplayId,
   normalizeOrder,
-  ORDER_HISTORY_STORAGE_KEY,
-  parseStoredOrders,
   saveOrderToLocalHistory,
 } from "@/lib/order-utils";
 
 export default function TrackOrderPage() {
   const [searchValue, setSearchValue] = useState("");
-  const [localOrders, setLocalOrders] = useState<AdminOrder[]>(DEMO_ORDERS);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [result, setResult] = useState<AdminOrder | null>(null);
@@ -28,7 +25,8 @@ export default function TrackOrderPage() {
     const frame = window.requestAnimationFrame(() => {
       const preset = new URLSearchParams(window.location.search).get("orderId");
       if (preset) setSearchValue(preset.trim().toUpperCase());
-      setLocalOrders([...parseStoredOrders(window.localStorage.getItem(ORDER_HISTORY_STORAGE_KEY)), ...DEMO_ORDERS]);
+      const token = new URLSearchParams(window.location.search).get("token");
+      if (preset && token) setOrderTrackingTokenForLookup(preset.trim().toUpperCase(), token);
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
@@ -59,8 +57,6 @@ export default function TrackOrderPage() {
       return;
     }
 
-    const localMatch = localOrders.find((order) => getOrderDisplayId(order).toUpperCase() === normalized);
-
     try {
       setLoading(true); setError(""); setSearched(true); setUsingCachedFallback(false);
       const snapshot = await getDocs(query(getCollection("orders"), where("orderId", "==", normalized), limit(1)));
@@ -71,14 +67,8 @@ export default function TrackOrderPage() {
         saveOrderToLocalHistory(remoteOrder);
       }
     } catch {
-      if (localMatch) {
-        setResult(localMatch);
-        setUsingCachedFallback(true);
-        setError("تعذر الوصول إلى الحالة الحالية. نعرض آخر نسخة محفوظة على هذا الجهاز وقد تكون قديمة.");
-      } else {
-        setError("تعذر الاتصال بخدمة التتبع حالياً. تحقق من الإنترنت ثم حاول مرة أخرى.");
-        setResult(null);
-      }
+      setError("يتطلب هذا الطلب رابط التتبع الآمن أو تسجيل الدخول إلى الحساب المرتبط به.");
+      setResult(null);
     } finally { setLoading(false); }
   };
 

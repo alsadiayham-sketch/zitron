@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MailCheck, MailOpen, RefreshCw, UsersRound } from "lucide-react";
-import { onSnapshot, updateDoc } from "firebase/firestore";
+import { onSnapshot, updateDoc } from "@/lib/store-data";
 import { AdminCard, AdminEmptyState, AdminPageHeader, LoadingState } from "@/components/admin/AdminUI";
 import { formatDate, getErrorMessage } from "@/lib/admin";
-import { getCollection, getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/store-data";
 
 type ContactMessage = {
   id: string;
