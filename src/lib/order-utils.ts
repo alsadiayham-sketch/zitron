@@ -129,6 +129,26 @@ export function saveOrderToLocalHistory(order: AdminOrder) {
   }
 }
 
+export function mergeOrderHistories(
+  localOrders: AdminOrder[],
+  remoteOrders: AdminOrder[]
+) {
+  const byOrderKey = new Map<string, AdminOrder>();
+  const getKey = (order: AdminOrder) =>
+    (order.orderId || order.id).trim().toUpperCase();
+
+  for (const order of localOrders) {
+    byOrderKey.set(getKey(order), order);
+  }
+  for (const order of remoteOrders) {
+    byOrderKey.set(getKey(order), order);
+  }
+
+  return Array.from(byOrderKey.values()).sort(
+    (a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+  );
+}
+
 export const DEMO_ORDERS: AdminOrder[] = [
   {
     id: "demo-order-1",

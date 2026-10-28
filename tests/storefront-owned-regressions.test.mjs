@@ -195,3 +195,20 @@ test("order normalization removes invalid lines and normalizes phone and totals"
   assert.equal(order.status, "declined");
   assert.ok(Number.isFinite(Date.parse(order.date)));
 });
+
+test("remote order history overrides stale local status for the same order number", () => {
+  const localOrder = {
+    ...orders.DEMO_ORDERS[0],
+    id: "firestore-doc-1",
+    orderId: "ZT-283F85D0",
+    status: "new",
+  };
+  const remoteOrder = {
+    ...localOrder,
+    status: "completed",
+  };
+
+  const merged = orders.mergeOrderHistories([localOrder], [remoteOrder]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].status, "completed");
+});

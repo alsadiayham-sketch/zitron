@@ -1,2 +1,2 @@
 /products/ /products 301
-/products/* /product?id=:splat 302
+/products/* /product 200

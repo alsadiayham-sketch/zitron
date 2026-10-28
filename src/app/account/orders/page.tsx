@@ -12,20 +12,12 @@ import OrderDetailsView from "@/components/orders/OrderDetailsView";
 import {
   CUSTOMER_PHONE_STORAGE_KEY,
   getOrderDisplayId,
+  mergeOrderHistories,
   normalizeOrder,
   ORDER_HISTORY_STORAGE_KEY,
   parseStoredOrders,
 } from "@/lib/order-utils";
 import { formatCurrency, formatDate } from "@/lib/admin";
-
-function mergeOrders(primary: AdminOrder[], secondary: AdminOrder[]) {
-  return [...primary, ...secondary]
-    .reduce<AdminOrder[]>((all, order) => {
-      if (!all.some((current) => current.id === order.id)) all.push(order);
-      return all;
-    }, [])
-    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-}
 
 export default function AccountOrdersPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -60,7 +52,7 @@ export default function AccountOrdersPage() {
     const unsubscribers: Array<() => void> = [];
 
     const syncOrders = () => {
-      setOrders(mergeOrders(userOrders, phoneOrders));
+      setOrders(mergeOrderHistories([], [...userOrders, ...phoneOrders]));
       setOrdersKey(subscriptionKey);
       setReadyKey(subscriptionKey);
       setLoadError("");
@@ -90,7 +82,7 @@ export default function AccountOrdersPage() {
   }, [effectivePhone, shouldListen, subscriptionKey, user]);
 
   const displayedOrders = useMemo(
-    () => mergeOrders(localOrders, shouldListen && ordersKey === subscriptionKey ? orders : []),
+    () => mergeOrderHistories(localOrders, shouldListen && ordersKey === subscriptionKey ? orders : []),
     [localOrders, orders, ordersKey, shouldListen, subscriptionKey]
   );
   const isLoading = authLoading || (shouldListen && readyKey !== subscriptionKey);
