@@ -1,11 +1,9 @@
-import ProductDetail from "./ProductDetail";
+import ProductPage from "@/components/ProductPage";
 
 export function generateStaticParams() {
   return [{ id: ["placeholder"] }];
 }
 
-export default function Page({ params }: { params: Promise<{ id: string[] }> }) {
-  // Wrap the array param into a single-string promise for ProductDetail
-  const wrappedParams = params.then((p) => ({ id: p.id[0] ?? "" }));
-  return <ProductDetail params={wrappedParams} />;
+export default function Page() {
+  return <ProductPage />;
 }

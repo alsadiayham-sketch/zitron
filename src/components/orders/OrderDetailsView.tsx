@@ -13,6 +13,8 @@ export default function OrderDetailsView({
   order: AdminOrder;
   showStatus?: boolean;
 }) {
+  const items = Array.isArray(order.items) ? order.items : [];
+
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -38,7 +40,7 @@ export default function OrderDetailsView({
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-4">
           <p className="text-sm text-slate-500">عدد المنتجات</p>
-          <p className="mt-2 font-bold text-slate-900">{order.items.length}</p>
+          <p className="mt-2 font-bold text-slate-900">{items.length}</p>
         </div>
       </div>
 
@@ -87,7 +89,9 @@ export default function OrderDetailsView({
           <h4 className="font-bold">تفاصيل المنتجات</h4>
         </div>
         <div className="space-y-3">
-          {order.items.map((item, index) => (
+          {items.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">لا توجد عناصر محفوظة لهذا الطلب.</p>
+          ) : items.map((item, index) => (
             <div
               key={`${item.id}-${index}`}
               className="flex flex-col gap-4 rounded-3xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"

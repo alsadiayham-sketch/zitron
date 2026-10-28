@@ -1,1 +1,2 @@
-/products/* /products/placeholder.html 200
+/products/ /products 301
+/products/* /product?id=:splat 302

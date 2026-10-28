@@ -6,7 +6,7 @@ import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { getAuthErrorMessage } from "@/context/AuthContext";
 import { AdminCard, AdminEmptyState, AdminPageHeader, FieldLabel, LoadingState, TextInput } from "@/components/admin/AdminUI";
-import { formatDate, type WorkerRecord } from "@/lib/admin";
+import { formatDate, getErrorMessage, type WorkerRecord } from "@/lib/admin";
 import { auth, getCollection, getDocRef } from "@/lib/firebase";
 
 type WorkerForm = {
@@ -36,12 +36,19 @@ export default function AdminWorkersPage() {
   const [resettingWorkerId, setResettingWorkerId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(getCollection("workers"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<WorkerRecord, "id">), id: doc.id }));
-      data.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
-      setWorkers(data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      getCollection("workers"),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<WorkerRecord, "id">), id: doc.id }));
+        data.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+        setWorkers(data);
+        setLoading(false);
+      },
+      () => {
+        setError("تعذر تحميل بيانات العمال حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -72,6 +79,15 @@ export default function AdminWorkersPage() {
       setError("يرجى تعبئة جميع حقول العامل.");
       return;
     }
+    const email = form.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("يرجى إدخال بريد إلكتروني صحيح.");
+      return;
+    }
+    if (workers.some((worker) => worker.id !== editingWorkerId && worker.email.trim().toLowerCase() === email)) {
+      setError("يوجد عامل مسجل بهذا البريد الإلكتروني بالفعل.");
+      return;
+    }
 
     const existingWorker = editingWorkerId ? workers.find((worker) => worker.id === editingWorkerId) : undefined;
     const workerId = editingWorkerId ?? createWorkerId();
@@ -84,7 +100,7 @@ export default function AdminWorkersPage() {
         getDocRef("workers", workerId),
         {
           name: form.name.trim(),
-          email: form.email.trim().toLowerCase(),
+          email,
           password: form.password,
           role: "worker",
           createdAt: existingWorker?.createdAt ?? new Date().toISOString(),
@@ -94,7 +110,7 @@ export default function AdminWorkersPage() {
       setFeedback(editingWorkerId ? "تم تحديث بيانات العامل بنجاح." : "تم إضافة العامل بنجاح.");
       resetWorkerForm();
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "تعذر حفظ بيانات العامل حالياً.");
+      setError(getErrorMessage(nextError, "تعذر حفظ بيانات العامل حالياً."));
     } finally {
       setSaving(false);
     }
@@ -105,10 +121,12 @@ export default function AdminWorkersPage() {
       return;
     }
 
-    await deleteDoc(getDocRef("workers", worker.id));
-
-    if (editingWorkerId === worker.id) {
-      resetWorkerForm();
+    try {
+      await deleteDoc(getDocRef("workers", worker.id));
+      if (editingWorkerId === worker.id) resetWorkerForm();
+      setFeedback("تم حذف العامل بنجاح.");
+    } catch (error) {
+      setError(getErrorMessage(error, "تعذر حذف العامل حالياً."));
     }
   };
 
@@ -143,9 +161,9 @@ export default function AdminWorkersPage() {
       <div className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
         <AdminCard>
           <form onSubmit={saveWorker} className="space-y-4">
-            <div><FieldLabel>اسم العامل</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم الكامل" /></div>
-            <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="worker@email.com" /></div>
-            <div><FieldLabel>كلمة المرور</FieldLabel><TextInput type="text" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="كلمة مرور بسيطة للعامل" /></div>
+            <div><FieldLabel>اسم العامل</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم الكامل" required /></div>
+            <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="worker@email.com" required /></div>
+            <div><FieldLabel>كلمة المرور</FieldLabel><TextInput type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="كلمة مرور العامل" required autoComplete="new-password" /></div>
             {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="submit" disabled={saving} className="w-full rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? (editingWorkerId ? "جاري الحفظ..." : "جاري الإضافة...") : (editingWorkerId ? "حفظ التعديلات" : "إضافة عامل")}</button>

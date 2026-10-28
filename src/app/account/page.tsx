@@ -16,7 +16,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/");
+      router.replace("/account/profile");
     }
   }, [loading, router, user]);
 
@@ -26,8 +26,8 @@ export default function AccountPage() {
     try {
       setSubmitting(true);
       setError("");
-      await signIn(email, password);
-      router.replace("/");
+      await signIn(email.trim(), password);
+      router.replace("/account/profile");
     } catch (nextError) {
       setError(getAuthErrorMessage(nextError));
     } finally {
@@ -35,7 +35,7 @@ export default function AccountPage() {
     }
   };
 
-  if (loading) {
+  if (loading || user) {
     return (
       <section className="mx-auto flex min-h-[50vh] max-w-7xl items-center justify-center px-4 py-16" dir="rtl">
         <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-6 py-4 text-slate-500 shadow-sm">
@@ -65,7 +65,11 @@ export default function AccountPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setError("");
+                  }}
+                  autoComplete="email"
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="example@email.com"
                 />
@@ -76,7 +80,11 @@ export default function AccountPage() {
                   type="password"
                   required
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setError("");
+                  }}
+                  autoComplete="current-password"
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="••••••••"
                 />

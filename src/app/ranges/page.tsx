@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useProducts } from "@/lib/firebase-hooks";
 import { ArrowLeft } from "lucide-react";
 
 const ranges = [
@@ -69,6 +72,7 @@ const ranges = [
 ];
 
 export default function RangesPage() {
+  const { products, loading, error } = useProducts();
   return (
     <>
       {/* Page Header */}
@@ -85,6 +89,7 @@ export default function RangesPage() {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {error && <p role="alert">{error}</p>}
             {ranges.map((range) => (
               <Link
                 key={range.id}
@@ -95,7 +100,7 @@ export default function RangesPage() {
                   <div className={`aspect-[16/9] bg-gradient-to-br ${range.color} flex items-center justify-center`}>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-[var(--primary)]">{range.nameEn}</p>
-                      <p className="text-sm text-[var(--primary)]/60 mt-1">{range.products} منتجات</p>
+                      <p className="text-sm text-[var(--primary)]/80 mt-1">{loading ? "جاري التحميل..." : `${products.filter((product) => product.rangeId === range.id).length} منتجات`}</p>
                     </div>
                   </div>
                   <div className="p-6">

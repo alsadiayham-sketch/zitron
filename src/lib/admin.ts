@@ -1,6 +1,7 @@
 "use client";
 
 import type { Product } from "@/lib/types";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
 
 export type OrderStatus = "new" | "processing" | "prepared" | "out_for_delivery" | "completed" | "declined";
 export type AdminRole = "admin" | "worker";
@@ -126,20 +127,7 @@ export const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
   declined: "bg-rose-100 text-rose-700 ring-rose-200",
 };
 
-export const CATEGORY_OPTIONS = [
-  { value: "sun", label: "الحماية من الشمس" },
-  { value: "serums", label: "السيروم" },
-  { value: "day-care", label: "العناية النهارية" },
-  { value: "night-care", label: "العناية الليلية" },
-  { value: "tinted", label: "العناية الملونة" },
-  { value: "body", label: "العناية بالجسم" },
-  { value: "cleansers", label: "المنظفات" },
-  { value: "micellar", label: "ماء ميسيلار" },
-  { value: "shampoos", label: "الشامبو" },
-  { value: "deodorants", label: "مزيلات العرق" },
-  { value: "masks", label: "الأقنعة" },
-  { value: "hands", label: "العناية باليدين" },
-];
+export const CATEGORY_OPTIONS = PRODUCT_CATEGORIES.map(({ id, label }) => ({ value: id, label }));
 
 export function createEmptyProduct(): Product {
   return {
@@ -190,6 +178,23 @@ export function slugify(value: string) {
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+export function isValidNonNegativeNumber(value: number) {
+  return Number.isFinite(value) && value >= 0;
+}
+
+export function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export function subscribeToAdminAuth(onStoreChange: () => void) {

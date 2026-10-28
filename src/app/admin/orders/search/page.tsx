@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getDocs, limit, query, where } from "firebase/firestore";
+import { getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { Printer, Search } from "lucide-react";
-import { getCollection } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/firebase";
 import { readAdminSession, type AdminOrder } from "@/lib/admin";
 import { AdminCard, AdminEmptyState, AdminPageHeader, TextInput } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";
@@ -32,10 +32,11 @@ export default function AdminOrderSearchPage() {
       setLoading(true);
       setError("");
       setSearched(true);
+      setResult(null);
       const snapshot = await getDocs(
         query(getCollection("orders"), where("orderId", "==", normalized), limit(1))
       );
-      const match = snapshot.docs[0];
+      const match = snapshot.docs[0] ?? await getDoc(getDocRef("orders", searchValue.trim()));
       setResult(match ? normalizeOrder(match.id, match.data()) : null);
     } catch {
       setError("تعذر تنفيذ البحث الآن. حاول مرة أخرى لاحقاً.");

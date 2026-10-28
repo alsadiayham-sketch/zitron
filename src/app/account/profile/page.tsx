@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword } from "firebase/auth";
-import { updateDoc } from "firebase/firestore";
+import { setDoc } from "firebase/firestore";
 import {
   LoaderCircle,
   LogOut,
@@ -95,9 +95,9 @@ export default function ProfilePage() {
     setLocationError("");
 
     try {
-      await updateDoc(getDocRef("users", user.uid), {
+      await setDoc(getDocRef("users", user.uid), {
         locations: nextLocations,
-      });
+      }, { merge: true });
       resetLocationForm();
       setMessage("تم تحديث العناوين المحفوظة بنجاح.");
     } catch (nextError) {
@@ -119,6 +119,16 @@ export default function ProfilePage() {
       setMessage("");
 
       const nextEmail = detailsForm.email.trim();
+      const nextName = detailsForm.name.trim();
+      const nextPhone = detailsForm.phone.trim().replace(/[\s()-]/g, "");
+      if (nextName.length < 2) {
+        setError("يرجى إدخال اسم صالح.");
+        return;
+      }
+      if (nextPhone && !/^\+?\d{7,15}$/.test(nextPhone)) {
+        setError("يرجى إدخال رقم هاتف صالح من 7 إلى 15 رقماً.");
+        return;
+      }
       if (nextEmail && nextEmail !== user.email) {
         if (!detailsForm.currentPassword.trim()) {
           setError("أدخل كلمة المرور الحالية لتحديث البريد الإلكتروني.");
@@ -130,11 +140,12 @@ export default function ProfilePage() {
         await updateEmail(user, nextEmail);
       }
 
-      await updateDoc(getDocRef("users", user.uid), {
-        name: detailsForm.name.trim(),
+      await setDoc(getDocRef("users", user.uid), {
+        name: nextName,
         email: nextEmail,
-        phone: detailsForm.phone.trim(),
-      });
+        phone: nextPhone,
+        createdAt: profile?.createdAt || new Date().toISOString(),
+      }, { merge: true });
 
       setDetailsForm((prev) => ({ ...prev, currentPassword: "" }));
       setMessage("تم تحديث بيانات الملف الشخصي بنجاح.");
@@ -188,7 +199,9 @@ export default function ProfilePage() {
       label: locationForm.label.trim(),
       city: locationForm.city.trim(),
       fullAddress: locationForm.fullAddress.trim(),
-      isDefault: locations.length === 0 || locations.every((location) => !location.isDefault),
+      isDefault: editingLocationId
+        ? Boolean(locations.find((location) => location.id === editingLocationId)?.isDefault)
+        : locations.length === 0 || locations.every((location) => !location.isDefault),
     };
 
     const nextLocations = editingLocationId

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { onSnapshot, setDoc } from "firebase/firestore";
-import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
+import { DEFAULT_SETTINGS, getErrorMessage, isValidHttpUrl, type AdminSettings } from "@/lib/admin";
 import { getDocRef } from "@/lib/firebase";
 import {
   AdminCard,
@@ -18,29 +18,51 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [hasSaveError, setHasSaveError] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(getDocRef("settings", "config"), (snapshot) => {
-      if (snapshot.exists()) {
-        setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
-      } else {
-        setSettings(DEFAULT_SETTINGS);
+    const unsubscribe = onSnapshot(
+      getDocRef("settings", "config"),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
+        } else {
+          setSettings(DEFAULT_SETTINGS);
+        }
+        setLoading(false);
+      },
+      () => {
+        setMessage("تعذر تحميل الإعدادات حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setHasSaveError(true);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
   }, []);
 
   const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!settings.storeName.trim() || !settings.storeNameAr.trim()) {
+      setMessage("يرجى إدخال اسمي المتجر بالعربية والإنجليزية.");
+      setHasSaveError(true);
+      return;
+    }
+    if (settings.instagramLink.trim() && !isValidHttpUrl(settings.instagramLink.trim())) {
+      setMessage("يرجى إدخال رابط إنستغرام صحيح يبدأ بـ http أو https.");
+      setHasSaveError(true);
+      return;
+    }
     try {
       setIsSaving(true);
       setMessage("");
+      setHasSaveError(false);
       await setDoc(getDocRef("settings", "config"), settings, { merge: true });
       setMessage("تم حفظ الإعدادات بنجاح.");
+      setHasSaveError(false);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "فشل حفظ الإعدادات.");
+      setMessage(getErrorMessage(error, "فشل حفظ الإعدادات."));
+      setHasSaveError(true);
     } finally {
       setIsSaving(false);
     }
@@ -135,7 +157,7 @@ export default function AdminSettingsPage() {
         </AdminCard>
 
         {message ? (
-          <div className={`rounded-2xl px-4 py-3 text-sm ${message.includes("نجاح") ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-rose-200 bg-rose-50 text-rose-700"}`}>
+          <div className={`rounded-2xl px-4 py-3 text-sm ${hasSaveError ? "border border-rose-200 bg-rose-50 text-rose-700" : "border border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
             {message}
           </div>
         ) : null}

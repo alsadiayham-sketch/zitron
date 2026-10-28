@@ -19,10 +19,17 @@ export default function AdminOrdersPage() {
   const printedBy = readAdminSession()?.name ?? "غير محدد";
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(getCollection("orders"), (snapshot) => {
-      setOrders(snapshot.docs.map((doc) => normalizeOrder(doc.id, doc.data())));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      getCollection("orders"),
+      (snapshot) => {
+        setOrders(snapshot.docs.map((doc) => normalizeOrder(doc.id, doc.data())));
+        setLoading(false);
+      },
+      () => {
+        setError("تعذر تحميل الطلبات النشطة حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -51,6 +58,11 @@ export default function AdminOrdersPage() {
     } finally {
       setUpdatingOrderId(null);
     }
+  };
+
+  const declineOrder = async (order: AdminOrder) => {
+    if (!window.confirm(`هل تريد رفض الطلب ${getOrderDisplayId(order)}؟`)) return;
+    await updateStatus(order.id, "declined");
   };
 
   if (loading) {
@@ -158,7 +170,7 @@ export default function AdminOrdersPage() {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      void updateStatus(order.id, "declined");
+                      void declineOrder(order);
                     }}
                     disabled={isUpdating}
                     className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"

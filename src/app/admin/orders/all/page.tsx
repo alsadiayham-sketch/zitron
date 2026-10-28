@@ -167,6 +167,9 @@ export default function AdminAllOrdersPage() {
         }
 
         if (dateFilterMode === "between") {
+          if (fromTime && toTime && fromTime > toTime) {
+            return false;
+          }
           if (fromTime && orderTime < fromTime) {
             return false;
           }
@@ -179,6 +182,8 @@ export default function AdminAllOrdersPage() {
       return true;
     });
   }, [cityFilter, dateFilterMode, fromDate, orders, searchTerm, statusFilters, toDate]);
+
+  const dateRangeIsInvalid = dateFilterMode === "between" && Boolean(fromDate && toDate && fromDate > toDate);
 
   if (loading && orders.length === 0) {
     return <LoadingState label="جاري تحميل كل الطلبات..." />;
@@ -193,7 +198,7 @@ export default function AdminAllOrdersPage() {
           <button
             type="button"
             onClick={() => printOrders(filteredOrders, "قائمة الطلبات المفلترة", printedBy)}
-            disabled={filteredOrders.length === 0}
+            disabled={filteredOrders.length === 0 || dateRangeIsInvalid}
             className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Printer className="h-4 w-4" />
@@ -214,6 +219,10 @@ export default function AdminAllOrdersPage() {
               >
                 عرض كل الحالات
               </button>
+            ) : null}
+
+            {dateRangeIsInvalid ? (
+              <p className="text-sm text-rose-600" role="alert">يجب أن يكون تاريخ البداية قبل تاريخ النهاية.</p>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
@@ -328,7 +337,19 @@ export default function AdminAllOrdersPage() {
       </AdminCard>
 
       <div ref={observerTargetRef} className="flex justify-center py-4 text-sm text-slate-500">
-        {loadingMore ? "جاري تحميل المزيد من الطلبات..." : hasMore ? "" : "لا توجد طلبات إضافية"}
+        {loadingMore ? (
+          "جاري تحميل المزيد من الطلبات..."
+        ) : hasMore ? (
+          <button
+            type="button"
+            onClick={() => void loadOrders(false)}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            تحميل المزيد
+          </button>
+        ) : (
+          "لا توجد طلبات إضافية"
+        )}
       </div>
 
       <AdminModal

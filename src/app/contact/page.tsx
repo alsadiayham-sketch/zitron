@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
+import { addDoc, onSnapshot } from "firebase/firestore";
 import { Mail, Phone, MapPin, Send, Clock } from "lucide-react";
 import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
-import { getDocRef } from "@/lib/firebase";
+import { getCollection, getDocRef } from "@/lib/firebase";
 
 export default function ContactPage() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,10 +29,25 @@ export default function ContactPage() {
     return () => unsubscribe();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.");
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    if (sending) return;
+    if (!formData.name.trim() || !formData.message.trim() || !formData.subject) {
+      setResult("يرجى إدخال الاسم والموضوع والرسالة.");
+      return;
+    }
+    setSending(true);
+    setResult("");
+    try {
+      await addDoc(getCollection("messages"), { ...formData, name: formData.name.trim(), email: formData.email.trim(), message: formData.message.trim(), createdAt: new Date().toISOString(), status: "new" });
+      setResult("تم استلام رسالتك بنجاح.");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      console.error("Contact message failed:", error);
+      setResult("تعذر إرسال الرسالة. حاول مجدداً أو تواصل عبر الهاتف.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -174,11 +191,13 @@ export default function ContactPage() {
 
                   <button
                     type="submit"
+                    disabled={sending}
                     className="inline-flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-light)] text-white font-medium py-3 px-8 rounded-full transition-colors"
                   >
                     <Send size={16} />
-                    إرسال الرسالة
+                    {sending ? "جاري الإرسال..." : "إرسال الرسالة"}
                   </button>
+                  {result && <p role="status">{result}</p>}
                 </form>
               </div>
             </div>

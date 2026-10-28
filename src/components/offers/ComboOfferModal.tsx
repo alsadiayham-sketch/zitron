@@ -15,7 +15,7 @@ interface ComboOfferModalProps {
   initialSelection?: string[];
   confirmLabel?: string;
   onClose: () => void;
-  onConfirm: (items: Omit<CartItem, "quantity">[], selectedProductIds: string[]) => void;
+  onConfirm: (items: CartItem[], selectedProductIds: string[]) => void;
 }
 
 export default function ComboOfferModal({
@@ -33,12 +33,17 @@ export default function ComboOfferModal({
     if (!open || typeof document === "undefined") return;
 
     const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
     document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [onClose, open]);
 
   const productMap = useMemo(
     () => new Map(products.map((product) => [product.id, product] as const)),
@@ -50,33 +55,39 @@ export default function ComboOfferModal({
     return getEligibleProducts(offer, productMap);
   }, [offer, productMap]);
 
-  const pickCount = offer?.pickCount ?? 0;
-  const selectedCount = selectedProductIds.length;
+  const eligibleProductIds = useMemo(
+    () => new Set(eligibleProducts.map((product) => product.id)),
+    [eligibleProducts]
+  );
+  const validSelectedProductIds = selectedProductIds.filter((productId) => eligibleProductIds.has(productId));
+  const pickCount = Math.max(0, Math.floor(Number(offer?.pickCount ?? 0)));
+  const selectedCount = validSelectedProductIds.length;
   const isComplete = selectedCount === pickCount && pickCount > 0;
-  const unitPrice = Number(((offer?.comboPrice ?? 0) / Math.max(1, pickCount)).toFixed(2));
+  const unitPrice = Number(offer?.comboPrice ?? 0) / Math.max(1, pickCount);
 
   const updateSelection = (productId: string, action: "add" | "remove") => {
     if (!offer) return;
 
     setSelectedProductIds((current) => {
+      const validCurrent = current.filter((selectedId) => eligibleProductIds.has(selectedId));
       if (action === "add") {
-        if (offer.uniqueOnly && current.includes(productId)) {
-          return current;
+        if (offer.uniqueOnly && validCurrent.includes(productId)) {
+          return validCurrent;
         }
 
-        if (current.length >= pickCount) {
-          return current;
+        if (validCurrent.length >= pickCount) {
+          return validCurrent;
         }
 
-        return [...current, productId];
+        return [...validCurrent, productId];
       }
 
-      const removalIndex = current.lastIndexOf(productId);
+      const removalIndex = validCurrent.lastIndexOf(productId);
       if (removalIndex === -1) {
-        return current;
+        return validCurrent;
       }
 
-      return current.filter(
+      return validCurrent.filter(
         (selectedId, index) => !(selectedId === productId && index === removalIndex)
       );
     });
@@ -84,7 +95,10 @@ export default function ComboOfferModal({
 
   const handleConfirm = () => {
     if (!offer || !isComplete) return;
-    onConfirm(buildComboCartItems(offer, selectedProductIds, productMap), selectedProductIds);
+    const items = buildComboCartItems(offer, validSelectedProductIds, productMap);
+    const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+    if (itemCount !== pickCount) return;
+    onConfirm(items, validSelectedProductIds);
   };
 
   return (
@@ -96,6 +110,7 @@ export default function ComboOfferModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
+          role="presentation"
         >
           <motion.div
             className="relative flex max-h-[95vh] sm:max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[2rem] sm:rounded-[2rem] bg-white shadow-2xl sm:mx-4"
@@ -105,6 +120,9 @@ export default function ComboOfferModal({
             transition={{ duration: 0.2 }}
             onClick={(event) => event.stopPropagation()}
             dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="combo-offer-title"
           >
             {/* Header - fixed */}
             <div className="flex-shrink-0 border-b border-orange-100 bg-gradient-to-r from-orange-50 via-white to-red-50 px-5 py-4 sm:px-6 sm:py-5">
@@ -114,7 +132,7 @@ export default function ComboOfferModal({
                     <Sparkles className="h-4 w-4" />
                     خصص عرضك الآن
                   </div>
-                  <h2 className="mt-2 text-xl sm:text-2xl font-bold text-slate-900">{offer.title}</h2>
+                  <h2 id="combo-offer-title" className="mt-2 text-xl sm:text-2xl font-bold text-slate-900">{offer.title}</h2>
                   <p className="mt-1 text-xs sm:text-sm text-slate-600">
                     اختر {pickCount} منتجات بسعر إجمالي {formatCurrency(offer.comboPrice ?? 0)}
                     <span className="mx-2 text-slate-300">•</span>
@@ -157,8 +175,12 @@ export default function ComboOfferModal({
             {/* Products grid - scrollable */}
             <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-6">
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 xl:grid-cols-3">
-                {eligibleProducts.map((product) => {
-                  const selectionCount = getSelectionCount(selectedProductIds, product.id);
+                {eligibleProducts.length === 0 ? (
+                  <div className="col-span-full rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600">
+                    لا توجد منتجات متاحة لهذا العرض حالياً.
+                  </div>
+                ) : eligibleProducts.map((product) => {
+                  const selectionCount = getSelectionCount(validSelectedProductIds, product.id);
                   const selectionLimitReached = selectedCount >= pickCount;
                   const canAdd = offer.uniqueOnly
                     ? !selectionLimitReached && selectionCount === 0

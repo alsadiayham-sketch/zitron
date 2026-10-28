@@ -6,7 +6,15 @@ import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { Pencil, Plus, Trash2, Upload, ImagePlus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { getCollection, getDocRef } from "@/lib/firebase";
-import { CATEGORY_OPTIONS, createEmptyProduct, formatCurrency, slugify, uploadMultipleImages } from "@/lib/admin";
+import {
+  CATEGORY_OPTIONS,
+  createEmptyProduct,
+  formatCurrency,
+  getErrorMessage,
+  isValidNonNegativeNumber,
+  slugify,
+  uploadMultipleImages,
+} from "@/lib/admin";
 import {
   AdminCard,
   AdminEmptyState,
@@ -30,15 +38,22 @@ export default function AdminProductsPage() {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(getCollection("products"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        ...(doc.data() as Omit<Product, "id">),
-        id: doc.id,
-      }));
-      data.sort((a, b) => a.name.localeCompare(b.name, "ar"));
-      setProducts(data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      getCollection("products"),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          ...(doc.data() as Omit<Product, "id">),
+          id: doc.id,
+        }));
+        data.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+        setProducts(data);
+        setLoading(false);
+      },
+      () => {
+        setFormError("تعذر تحميل المنتجات حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -102,8 +117,33 @@ export default function AdminProductsPage() {
       setFormError("يرجى رفع صورة واحدة على الأقل للمنتج.");
       return;
     }
+    if (!isValidNonNegativeNumber(form.price)) {
+      setFormError("يرجى إدخال سعر صحيح لا يقل عن صفر.");
+      return;
+    }
+    if (form.oldPrice !== undefined && !isValidNonNegativeNumber(form.oldPrice)) {
+      setFormError("يرجى إدخال سعر سابق صحيح أو ترك الحقل فارغاً.");
+      return;
+    }
+    if (form.oldPrice !== undefined && form.oldPrice <= form.price) {
+      setFormError("يجب أن يكون السعر السابق أعلى من السعر الحالي.");
+      return;
+    }
+    if (!isValidNonNegativeNumber(form.rating) || form.rating > 5) {
+      setFormError("يجب أن يكون التقييم بين 0 و5.");
+      return;
+    }
+    if (!isValidNonNegativeNumber(form.reviews)) {
+      setFormError("يجب أن يكون عدد المراجعات رقماً صحيحاً لا يقل عن صفر.");
+      return;
+    }
 
-    const docId = form.id.trim() || slugify(form.nameEn || form.name) || crypto.randomUUID();
+    const suggestedId = slugify(form.nameEn || form.name);
+    const docId = form.id.trim() || suggestedId || crypto.randomUUID();
+    if (!isEditing && products.some((product) => product.id === docId)) {
+      setFormError("يوجد منتج بالمعرّف نفسه بالفعل. غيّر الاسم أو عدّل المنتج الموجود بدلاً من ذلك.");
+      return;
+    }
     const sanitizedImages = (form.images.length ? form.images : [form.image])
       .map((value) => value.trim())
       .filter(Boolean);
@@ -136,7 +176,7 @@ export default function AdminProductsPage() {
       await setDoc(getDocRef("products", docId), payload);
       setIsModalOpen(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "فشل حفظ المنتج.");
+      setFormError(getErrorMessage(error, "فشل حفظ المنتج."));
     } finally {
       setIsSaving(false);
     }
@@ -144,7 +184,12 @@ export default function AdminProductsPage() {
 
   const deleteProduct = async (product: Product) => {
     if (!window.confirm(`هل تريد حذف المنتج "${product.name}"؟`)) return;
-    await deleteDoc(getDocRef("products", product.id));
+    try {
+      setFormError("");
+      await deleteDoc(getDocRef("products", product.id));
+    } catch (error) {
+      setFormError(getErrorMessage(error, "تعذر حذف المنتج حالياً."));
+    }
   };
 
   const totalValue = useMemo(
@@ -193,6 +238,11 @@ export default function AdminProductsPage() {
       </section>
 
       <AdminCard className="overflow-hidden">
+        {formError && !isModalOpen ? (
+          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {formError}
+          </div>
+        ) : null}
         {products.length === 0 ? (
           <AdminEmptyState title="لا توجد منتجات حالياً" description="ابدأ بإضافة أول منتج ليظهر في المتجر فوراً." />
         ) : (
@@ -328,10 +378,10 @@ export default function AdminProductsPage() {
                 <FieldLabel>صور المنتج</FieldLabel>
                 <p className="text-xs text-slate-500">يمكن رفع أكثر من صورة، وستُستخدم الأولى كصورة رئيسية.</p>
               </div>
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+              <label className={`inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 ${isUploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                 <Upload className="h-4 w-4" />
                 {isUploading ? "جاري الرفع..." : "رفع صور"}
-                <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleImageUpload(event)} />
+                <input type="file" accept="image/*" multiple className="hidden" disabled={isUploading} onChange={(event) => void handleImageUpload(event)} />
               </label>
             </div>
 

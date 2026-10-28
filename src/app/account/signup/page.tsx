@@ -33,6 +33,16 @@ export default function SignUpPage() {
       setError("كلمتا المرور غير متطابقتين.");
       return;
     }
+    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+    const phone = formData.phone.trim().replace(/[\s()-]/g, "");
+    if (fullName.length < 3) {
+      setError("يرجى إدخال الاسم الأول واسم العائلة.");
+      return;
+    }
+    if (!/^\+?\d{7,15}$/.test(phone)) {
+      setError("يرجى إدخال رقم هاتف صالح من 7 إلى 15 رقماً.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -40,10 +50,10 @@ export default function SignUpPage() {
       await signUp(
         formData.email,
         formData.password,
-        `${formData.firstName} ${formData.lastName}`.trim(),
-        formData.phone
+        fullName,
+        phone
       );
-      router.replace("/");
+      router.replace("/account/profile");
     } catch (nextError) {
       setError(getAuthErrorMessage(nextError));
     } finally {
@@ -98,6 +108,7 @@ export default function SignUpPage() {
                   onChange={(event) => setFormData({ ...formData, email: event.target.value })}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="example@email.com"
+                  autoComplete="email"
                 />
               </div>
 
@@ -110,6 +121,7 @@ export default function SignUpPage() {
                   onChange={(event) => setFormData({ ...formData, phone: event.target.value })}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="0590000000"
+                  autoComplete="tel"
                 />
               </div>
 
@@ -123,6 +135,7 @@ export default function SignUpPage() {
                   onChange={(event) => setFormData({ ...formData, password: event.target.value })}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
                 <p className="mt-1 text-xs text-gray-500">6 أحرف على الأقل</p>
               </div>
@@ -136,6 +149,7 @@ export default function SignUpPage() {
                   onChange={(event) => setFormData({ ...formData, confirmPassword: event.target.value })}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
               </div>
 

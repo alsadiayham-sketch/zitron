@@ -90,12 +90,10 @@ export default function Home() {
           >
             {slide.type === "image" ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={slide.url}
-                  alt={slide.title || "ZITRON"}
-                  className="w-full h-full object-cover"
-                />
+                <picture>
+                  {slide.mobileUrl && <source media="(max-width: 640px)" srcSet={slide.mobileUrl} />}
+                  <img src={slide.url} alt={slide.title || "ZITRON"} className="w-full h-full object-cover" />
+                </picture>
                 {(slide.title || slide.subtitle) && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <div className="text-center text-white px-4">
@@ -120,6 +118,7 @@ export default function Home() {
                   autoPlay={index === currentSlide}
                   muted
                   playsInline
+                  preload={index === currentSlide ? "auto" : "none"}
                   onEnded={nextSlide}
                   loop={false}
                 />
@@ -275,7 +274,7 @@ export default function Home() {
                 key={product.id}
                 className="bg-white rounded-2xl p-6 card-hover border border-gray-100 group"
               >
-                <Link href={`/products/${product.id}`}>
+                <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
                   <div className="relative aspect-[3/4] mb-4 bg-[var(--secondary)] rounded-xl overflow-hidden flex items-center justify-center">
                     <Image
                       src={product.image}
@@ -295,7 +294,7 @@ export default function Home() {
                   <p className="text-xs text-[var(--primary)] font-medium mb-1">
                     {product.range}
                   </p>
-                  <Link href={`/products/${product.id}`}>
+                  <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
                     <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--primary)] transition-colors">
                       {product.name}
                     </h3>
@@ -555,7 +554,7 @@ export default function Home() {
                   </h3>
                   <p className="text-gray-600 text-sm mb-4">{article.excerpt}</p>
                   <Link
-                    href="#"
+                    href="/about"
                     className="text-[var(--primary)] font-medium text-sm inline-flex items-center gap-2 hover:gap-3 transition-all"
                   >
                     اقرأ المزيد

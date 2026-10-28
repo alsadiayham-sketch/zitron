@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { addDoc, increment, updateDoc } from "firebase/firestore";
+import { addDoc, increment, setDoc } from "firebase/firestore";
 import {
   CheckCircle2,
   Copy,
@@ -30,16 +30,19 @@ import {
   CUSTOMER_PHONE_STORAGE_KEY,
   extractCityFromAddress,
   generateOrderId,
+  normalizePhone,
+  saveOrderToLocalHistory,
 } from "@/lib/order-utils";
 import {
   doesOfferQualify,
+  getRegularCartCatalogIssues,
   getEligibleProducts,
   groupComboCartItems,
   isComboCartItemId,
   isOfferActive,
 } from "@/lib/offers";
 import type { AppliedOffer, CartItem, Offer } from "@/lib/types";
-import type { SavedLocation } from "@/lib/admin";
+import type { AdminOrder, SavedLocation } from "@/lib/admin";
 
 type CheckoutFormState = {
   customerName: string;
@@ -64,23 +67,12 @@ function generateLocationId() {
 }
 
 export default function CheckoutPage() {
-  const { items, totalPrice, clearCart, replaceComboItems } = useCart();
+  const { items, totalPrice, clearCart, refreshItem, removeItem, replaceComboItems } = useCart();
   const { user, profile } = useAuth();
-  const { offers } = useOffers();
-  const { products: offerProducts } = useProducts();
-  const [formData, setFormData] = useState<CheckoutFormState>(() => {
-    if (typeof window === "undefined") {
-      return initialFormState;
-    }
-
-    return {
-      customerName: window.localStorage.getItem(CUSTOMER_NAME_STORAGE_KEY) ?? "",
-      customerPhone: window.localStorage.getItem(CUSTOMER_PHONE_STORAGE_KEY) ?? "",
-      city: window.localStorage.getItem(CUSTOMER_CITY_STORAGE_KEY) ?? "",
-      customerAddress: window.localStorage.getItem(CUSTOMER_ADDRESS_STORAGE_KEY) ?? "",
-      notes: "",
-    };
-  });
+  const offersState = useOffers() as ReturnType<typeof useOffers> & { error?: string };
+  const { offers, loading: offersLoading, error: offersError = "" } = offersState;
+  const { products: offerProducts, loading: productsLoading, error: productsError } = useProducts();
+  const [formData, setFormData] = useState<CheckoutFormState>(initialFormState);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successOrderId, setSuccessOrderId] = useState("");
@@ -91,6 +83,21 @@ export default function CheckoutPage() {
   const [activeComboOffer, setActiveComboOffer] = useState<Offer | null>(null);
   const [editingComboSelection, setEditingComboSelection] = useState<string[]>([]);
   const initializedProfile = useRef(false);
+  const submissionLock = useRef(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setFormData((current) => ({
+        ...current,
+        customerName: current.customerName || window.localStorage.getItem(CUSTOMER_NAME_STORAGE_KEY) || "",
+        customerPhone: current.customerPhone || window.localStorage.getItem(CUSTOMER_PHONE_STORAGE_KEY) || "",
+        city: current.city || window.localStorage.getItem(CUSTOMER_CITY_STORAGE_KEY) || "",
+        customerAddress: current.customerAddress || window.localStorage.getItem(CUSTOMER_ADDRESS_STORAGE_KEY) || "",
+      }));
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const savedLocations = useMemo(() => profile?.locations ?? [], [profile?.locations]);
   const hasSavedLocations = savedLocations.length > 0;
@@ -128,6 +135,10 @@ export default function CheckoutPage() {
     [offerProducts]
   );
   const regularItems = useMemo(() => items.filter((item) => !isComboCartItemId(item.id)), [items]);
+  const catalogIssues = useMemo(
+    () => productsLoading || productsError ? [] : getRegularCartCatalogIssues(items, productMap),
+    [items, productMap, productsError, productsLoading]
+  );
   const comboGroups = useMemo(() => groupComboCartItems(items), [items]);
   const activeComboOfferMap = useMemo(
     () =>
@@ -138,6 +149,18 @@ export default function CheckoutPage() {
       ),
     [activeOffers]
   );
+  const invalidComboGroups = useMemo(() => {
+    if (offersLoading || productsLoading) return [];
+
+    return comboGroups.filter((group) => {
+      const offer = activeComboOfferMap.get(group.offerId);
+      if (!offer) return true;
+      if (group.totalQuantity !== Math.floor(Number(offer.pickCount))) return true;
+      if (offer.uniqueOnly && new Set(group.selectedProductIds).size !== group.selectedProductIds.length) return true;
+      const eligibleIds = new Set(getEligibleProducts(offer, productMap).map((product) => product.id));
+      return group.selectedProductIds.some((productId) => !eligibleIds.has(productId));
+    });
+  }, [activeComboOfferMap, comboGroups, offersLoading, productMap, productsLoading]);
 
   const qualifyingFreeShippingOffers = useMemo(
     () =>
@@ -182,31 +205,6 @@ export default function CheckoutPage() {
     });
   }, [productMap, qualifyingFreeProductOffers, selectedFreeProducts]);
 
-  const appliedOffers = useMemo<AppliedOffer[]>(() => {
-    const shippingOffers = qualifyingFreeShippingOffers.map((offer) => ({
-      type: "free_shipping" as const,
-      offerId: offer.id,
-    }));
-
-    const giftOffers = qualifyingFreeProductOffers.flatMap((offer) => {
-      const productId = selectedFreeProducts[offer.id];
-      const product = productId ? productMap.get(productId) : undefined;
-
-      return product
-        ? [{ type: "free_product" as const, offerId: offer.id, productId: product.id, productName: product.name }]
-        : [];
-    });
-
-    const comboOffers = comboGroups.map((group) => ({
-      type: "combo" as const,
-      offerId: group.offerId,
-      products: group.selectedProductIds,
-      comboPrice: Number(group.totalPrice.toFixed(2)),
-    }));
-
-    return [...shippingOffers, ...giftOffers, ...comboOffers];
-  }, [comboGroups, productMap, qualifyingFreeProductOffers, qualifyingFreeShippingOffers, selectedFreeProducts]);
-
   const orderItems = useMemo(() => [...items, ...freeProductOrderItems], [freeProductOrderItems, items]);
   const orderItemCount = useMemo(() => orderItems.reduce((sum, item) => sum + item.quantity, 0), [orderItems]);
 
@@ -234,15 +232,57 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submissionLock.current) return;
 
     if (items.length === 0) {
       setError("السلة فارغة حالياً، أضف منتجات قبل إتمام الطلب.");
       return;
     }
 
-    const missingFreeProductOffer = qualifyingFreeProductOffers.find((offer) => {
+    if (offersLoading || productsLoading) {
+      setError("جاري التحقق من العروض المتاحة. انتظر لحظة ثم أعد المحاولة.");
+      return;
+    }
+
+    if (productsError || offersError) {
+      setError(productsError || offersError || "تعذر التحقق من بيانات المتجر. أعد تحميل الصفحة وحاول مرة أخرى.");
+      return;
+    }
+
+    const liveCatalogIssues = getRegularCartCatalogIssues(items, productMap);
+    if (liveCatalogIssues.length > 0) {
+      setError("تغيرت بعض منتجات السلة أو لم تعد متاحة. راجع التنبيه أدناه قبل تأكيد الطلب.");
+      return;
+    }
+
+    const liveActiveOffers = offers.filter((offer) => isOfferActive(offer, new Date()));
+    const liveComboOfferMap = new Map(
+      liveActiveOffers
+        .filter((offer) => offer.type === "combo")
+        .map((offer) => [offer.id, offer] as const)
+    );
+    const hasInvalidCombo = comboGroups.some((group) => {
+      const offer = liveComboOfferMap.get(group.offerId);
+      if (!offer || group.totalQuantity !== Math.floor(Number(offer.pickCount))) return true;
+      if (offer.uniqueOnly && new Set(group.selectedProductIds).size !== group.selectedProductIds.length) return true;
+      const eligibleIds = new Set(getEligibleProducts(offer, productMap).map((product) => product.id));
+      return group.selectedProductIds.some((productId) => !eligibleIds.has(productId));
+    });
+
+    if (hasInvalidCombo) {
+      setError("انتهت صلاحية أحد العروض المركبة أو تغيرت منتجاته. احذف العرض غير المتاح أو عدّله قبل تأكيد الطلب.");
+      return;
+    }
+
+    const liveFreeProductOffers = liveActiveOffers.filter(
+      (offer) =>
+        offer.type === "free_product" &&
+        doesOfferQualify(offer, items, productMap, totalPrice) &&
+        getEligibleProducts(offer, productMap).length > 0
+    );
+    const missingFreeProductOffer = liveFreeProductOffers.find((offer) => {
       const selectedProductId = selectedFreeProducts[offer.id];
-      return !selectedProductId || !productMap.has(selectedProductId);
+      return !selectedProductId || !getEligibleProducts(offer, productMap).some((product) => product.id === selectedProductId);
     });
 
     if (missingFreeProductOffer) {
@@ -250,38 +290,110 @@ export default function CheckoutPage() {
       return;
     }
 
+    const submittedGiftItems: CartItem[] = liveFreeProductOffers.flatMap((offer) => {
+      const productId = selectedFreeProducts[offer.id];
+      const product = productId ? productMap.get(productId) : undefined;
+      return product
+        ? [{
+            id: `${product.id}__gift__${offer.id}`,
+            name: `${product.name} (هدية مجانية)`,
+            price: 0,
+            image: product.image,
+            quantity: 1,
+            range: product.range,
+          }]
+        : [];
+    });
+    const submittedOrderItems = [...items, ...submittedGiftItems];
+    const submittedAppliedOffers: AppliedOffer[] = [
+      ...liveActiveOffers
+        .filter((offer) => offer.type === "free_shipping" && doesOfferQualify(offer, items, productMap, totalPrice))
+        .map((offer) => ({ type: "free_shipping" as const, offerId: offer.id })),
+      ...liveFreeProductOffers.map((offer) => {
+        const productId = selectedFreeProducts[offer.id];
+        const product = productMap.get(productId);
+        return {
+          type: "free_product" as const,
+          offerId: offer.id,
+          productId,
+          productName: product?.name ?? "",
+        };
+      }),
+      ...comboGroups.map((group) => ({
+        type: "combo" as const,
+        offerId: group.offerId,
+        products: group.selectedProductIds,
+        comboPrice: Math.round(group.totalPrice * 100) / 100,
+      })),
+    ];
+
+    const customerName = formData.customerName.trim();
+    const customerPhone = normalizePhone(formData.customerPhone);
+    const customerAddress = formData.customerAddress.trim();
+    const city = formData.city.trim() || extractCityFromAddress(customerAddress);
+    if (customerName.length < 2) {
+      setError("يرجى إدخال اسم كامل صالح.");
+      return;
+    }
+    if (!/^\+?\d{7,15}$/.test(customerPhone)) {
+      setError("يرجى إدخال رقم هاتف صالح من 7 إلى 15 رقماً.");
+      return;
+    }
+    if (!city || customerAddress.length < 5) {
+      setError("يرجى إدخال المدينة وعنوان توصيل واضح.");
+      return;
+    }
+
     try {
+      submissionLock.current = true;
       setSubmitting(true);
       setError("");
 
-      const city = formData.city.trim() || extractCityFromAddress(formData.customerAddress);
       const orderId = generateOrderId();
       const orderRef = await addDoc(getCollection("orders"), {
         orderId,
-        items: orderItems,
-        customerName: formData.customerName.trim(),
-        customerPhone: formData.customerPhone.trim(),
-        customerAddress: formData.customerAddress.trim(),
+        items: submittedOrderItems,
+        customerName,
+        customerPhone,
+        customerAddress,
         notes: formData.notes.trim(),
         total: totalPrice,
         status: "new",
         date: new Date().toISOString(),
         city,
-        appliedOffers,
+        appliedOffers: submittedAppliedOffers,
         ...(user ? { userId: user.uid } : {}),
       });
 
-      await updateDoc(getDocRef("orders", orderRef.id), { id: orderRef.id });
-
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(CUSTOMER_NAME_STORAGE_KEY, formData.customerName.trim());
-        window.localStorage.setItem(CUSTOMER_PHONE_STORAGE_KEY, formData.customerPhone.trim());
-        window.localStorage.setItem(CUSTOMER_CITY_STORAGE_KEY, city);
-        window.localStorage.setItem(CUSTOMER_ADDRESS_STORAGE_KEY, formData.customerAddress.trim());
+        try {
+          window.localStorage.setItem(CUSTOMER_NAME_STORAGE_KEY, customerName);
+          window.localStorage.setItem(CUSTOMER_PHONE_STORAGE_KEY, customerPhone);
+          window.localStorage.setItem(CUSTOMER_CITY_STORAGE_KEY, city);
+          window.localStorage.setItem(CUSTOMER_ADDRESS_STORAGE_KEY, customerAddress);
+        } catch {
+          // Order completion must not fail because browser storage is unavailable.
+        }
       }
 
+      const localOrder: AdminOrder = {
+        id: orderRef.id,
+        orderId,
+        items: submittedOrderItems,
+        customerName,
+        customerPhone,
+        customerAddress,
+        notes: formData.notes.trim(),
+        city,
+        total: totalPrice,
+        status: "new",
+        date: new Date().toISOString(),
+        userId: user?.uid,
+      };
+      saveOrderToLocalHistory(localOrder);
+
       if (user) {
-        const shouldSaveAddress = selectedLocationId === "new" && !hasSavedLocations && saveNewAddressPreference === "yes";
+        const shouldSaveAddress = selectedLocationId === "new" && saveNewAddressPreference === "yes";
         const nextLocations = shouldSaveAddress
           ? [
               ...(profile?.locations ?? []),
@@ -289,18 +401,23 @@ export default function CheckoutPage() {
                 id: generateLocationId(),
                 label: "العنوان الرئيسي",
                 city,
-                fullAddress: formData.customerAddress.trim(),
+                fullAddress: customerAddress,
                 isDefault: (profile?.locations?.length ?? 0) === 0,
               },
             ]
           : undefined;
 
-        await updateDoc(getDocRef("users", user.uid), {
-          name: formData.customerName.trim(),
-          phone: formData.customerPhone.trim(),
-          orders: increment(1),
-          ...(nextLocations ? { locations: nextLocations } : {}),
-        });
+        try {
+          await setDoc(getDocRef("users", user.uid), {
+            name: customerName,
+            email: profile?.email || user.email || "",
+            phone: customerPhone,
+            orders: increment(1),
+            ...(nextLocations ? { locations: nextLocations } : {}),
+          }, { merge: true });
+        } catch {
+          // The order is already placed; profile synchronization can recover later.
+        }
       }
 
       clearCart();
@@ -309,6 +426,7 @@ export default function CheckoutPage() {
     } catch {
       setError("تعذر إرسال الطلب الآن. يرجى المحاولة مرة أخرى بعد قليل.");
     } finally {
+      submissionLock.current = false;
       setSubmitting(false);
     }
   };
@@ -334,7 +452,7 @@ export default function CheckoutPage() {
               {copied ? "تم النسخ!" : "نسخ"}
             </button>
           </div>
-          <p className="mt-2 text-sm text-emerald-700/90">سيتم تحويلك تلقائياً إلى صفحة طلباتك خلال لحظات.</p>
+          <p className="mt-2 text-sm text-emerald-700/90">احتفظ برقم الطلب لاستخدامه في صفحة التتبع.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href={`/account/orders?orderId=${successOrderId}`} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700">عرض طلباتي</Link>
             <Link href={`/track?orderId=${successOrderId}`} className="rounded-full border border-emerald-300 bg-white px-6 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100">تتبع الطلب</Link>
@@ -366,6 +484,52 @@ export default function CheckoutPage() {
 
       <div className="grid gap-8 lg:grid-cols-[0.8fr,1.2fr]">
         <form onSubmit={handleSubmit} className="order-2 space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          {productsError || offersError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
+              {productsError || offersError}
+              <span className="mt-1 block">لن يتم إرسال الطلب حتى ينجح التحقق من بيانات المتجر.</span>
+            </div>
+          ) : null}
+
+          {catalogIssues.length > 0 ? (
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4" role="alert">
+              <div>
+                <h2 className="font-bold text-amber-900">تحتاج السلة إلى مراجعة</h2>
+                <p className="mt-1 text-sm text-amber-800">لن نرسل منتجات محذوفة أو بأسعار قديمة.</p>
+              </div>
+              {catalogIssues.map(({ item, product, type }) => (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.name}</p>
+                    <p className="mt-1 text-slate-600">
+                      {type === "deleted"
+                        ? "لم يعد هذا المنتج موجوداً في المتجر."
+                        : `تغير السعر من ${formatCurrency(item.price)} إلى ${formatCurrency(product?.price ?? 0)}.`}
+                    </p>
+                  </div>
+                  {type === "deleted" ? (
+                    <button type="button" onClick={() => removeItem(item.id)} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 font-semibold text-rose-700 transition hover:bg-rose-100">
+                      حذف من السلة
+                    </button>
+                  ) : product ? (
+                    <button
+                      type="button"
+                      onClick={() => refreshItem(item.id, {
+                        name: product.name,
+                        price: product.price,
+                        image: product.image,
+                        range: product.range,
+                      })}
+                      className="rounded-full border border-amber-300 bg-white px-4 py-2 font-semibold text-amber-800 transition hover:bg-amber-100"
+                    >
+                      اعتماد السعر الجديد
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {qualifyingFreeShippingOffers.length > 0 ? (
             <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
               <div className="flex items-center gap-3">
@@ -470,7 +634,7 @@ export default function CheckoutPage() {
             </label>
           </div>
 
-          {user && !hasSavedLocations && selectedLocationId === "new" ? (
+          {user && selectedLocationId === "new" ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <p className="font-semibold text-slate-900">هل تريد حفظ هذا العنوان للاستخدام لاحقاً؟</p>
               <div className="mt-3 flex flex-wrap gap-3">
@@ -482,7 +646,7 @@ export default function CheckoutPage() {
 
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
-          <button type="submit" disabled={submitting} className="w-full rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري إرسال الطلب..." : "تأكيد الطلب"}</button>
+          <button type="submit" disabled={submitting || offersLoading || productsLoading || Boolean(productsError) || Boolean(offersError) || catalogIssues.length > 0} className="w-full rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري إرسال الطلب..." : offersLoading || productsLoading ? "جاري التحقق من العروض..." : "تأكيد الطلب"}</button>
         </form>
 
         <aside className="order-1 space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
@@ -510,12 +674,16 @@ export default function CheckoutPage() {
 
             {comboGroups.map((group) => {
               const comboOffer = activeComboOfferMap.get(group.offerId);
+              const isInvalid = !offersLoading && !productsLoading && invalidComboGroups.some((item) => item.offerId === group.offerId);
               return (
-                <div key={group.offerId} className="space-y-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
+                <div key={group.offerId} className={`space-y-3 rounded-3xl border p-4 ${isInvalid ? "border-rose-200 bg-rose-50" : "border-sky-200 bg-sky-50"}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sky-800">
+                    <div className={`flex items-center gap-2 ${isInvalid ? "text-rose-800" : "text-sky-800"}`}>
                       <Sparkles className="h-4 w-4" />
-                      <p className="font-bold">{comboOffer?.title ?? "عرض خاص"}</p>
+                      <div>
+                        <p className="font-bold">{comboOffer?.title ?? "عرض خاص غير متاح"}</p>
+                        {isInvalid ? <p className="mt-1 text-xs font-medium">انتهى العرض أو تغيرت المنتجات المؤهلة.</p> : null}
+                      </div>
                     </div>
                     {comboOffer ? (
                       <button
@@ -529,6 +697,14 @@ export default function CheckoutPage() {
                         <Pencil className="h-3.5 w-3.5" />
                         تعديل
                       </button>
+                    ) : isInvalid ? (
+                      <button
+                        type="button"
+                        onClick={() => replaceComboItems(group.offerId, [])}
+                        className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        حذف العرض
+                      </button>
                     ) : null}
                   </div>
                   {group.items.map((item) => (
@@ -540,7 +716,7 @@ export default function CheckoutPage() {
                         <p className="font-semibold text-slate-900 line-clamp-1">{item.name}</p>
                         <p className="mt-1 text-sm text-slate-500">الكمية: {item.quantity}</p>
                       </div>
-                      <p className="font-bold text-sky-700 flex-shrink-0">{formatCurrency(item.price * item.quantity)}</p>
+                      <p className={`flex-shrink-0 font-bold ${isInvalid ? "text-rose-700" : "text-sky-700"}`}>{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>

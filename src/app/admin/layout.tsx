@@ -11,6 +11,7 @@ import {
   Tag,
   ShoppingCart,
   Users,
+  Mail,
   Settings,
   LogOut,
   Menu,
@@ -55,9 +56,14 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/admin/users", label: "العملاء", icon: Users, roles: ["admin"] },
+  { href: "/admin/messages", label: "الرسائل والنشرة", icon: Mail, roles: ["admin"] },
   { href: "/admin/workers", label: "العمال", icon: UserCog, roles: ["admin"] },
   { href: "/admin/settings", label: "الإعدادات", icon: Settings, roles: ["admin"] },
 ];
+
+function isNavItemActive(pathname: string, href: string) {
+  return href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [username, setUsername] = useState("");
@@ -67,12 +73,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!username.trim() || !password) {
+      setError("يرجى إدخال اسم المستخدم وكلمة المرور.");
+      return;
+    }
 
     try {
       setSubmitting(true);
       setError("");
 
-      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         writeAdminSession({ role: "admin", name: "مدير النظام" });
         onLogin();
         return;
@@ -107,16 +117,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <p className="mt-2 text-sm text-slate-500">يمكن للمدير أو العمال تسجيل الدخول لإدارة الطلبات والعملاء والمحتوى.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</label>
-            <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل اسم المستخدم أو البريد" />
+            <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل اسم المستخدم أو البريد" required autoComplete="username" aria-invalid={Boolean(error)} />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور</label>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل كلمة المرور" />
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل كلمة المرور" required autoComplete="current-password" aria-invalid={Boolean(error)} />
           </div>
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{error}</div> : null}
           <button type="submit" disabled={submitting} className="w-full rounded-2xl bg-[var(--primary)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}</button>
         </form>
 
@@ -148,9 +158,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onSnapshot(query(getCollection("orders"), where("status", "==", "new")), (snapshot) => {
-      setNewOrdersCount(snapshot.size);
-    });
+    const unsubscribe = onSnapshot(
+      query(getCollection("orders"), where("status", "==", "new")),
+      (snapshot) => {
+        setNewOrdersCount(snapshot.size);
+      },
+      () => setNewOrdersCount(0)
+    );
 
     return () => unsubscribe();
   }, [session]);
@@ -166,7 +180,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     for (const item of visibleNavItems) {
       const activeChild = item.children?.find((child) => pathname === child.href || pathname.startsWith(`${child.href}/`));
       if (activeChild) return activeChild.label;
-      if (pathname === item.href || pathname.startsWith(`${item.href}/`)) return item.label;
+      if (isNavItemActive(pathname, item.href)) return item.label;
     }
     return session?.role === "worker" ? "الطلبات" : "لوحة التحكم";
   }, [pathname, session?.role, visibleNavItems]);
@@ -201,7 +215,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
             <nav className="mt-6 flex-1 space-y-2">
               {visibleNavItems.map((item) => {
-                const parentActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const parentActive = isNavItemActive(pathname, item.href);
                 return (
                   <div key={item.href} className="space-y-2">
                     <SidebarLink href={item.href} label={item.label} icon={item.icon} active={parentActive} badgeCount={item.href === "/admin/orders" ? (session ? newOrdersCount : 0) : undefined} onNavigate={() => setMobileMenuOpen(false)} />

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Filter, Sparkles, Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { filterProducts } from "@/lib/catalog";
 import { useOffers, useProducts } from "@/lib/firebase-hooks";
 import { useCart } from "@/context/CartContext";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
@@ -12,16 +14,22 @@ import { isOfferActive } from "@/lib/offers";
 
 const categories = [{ id: "all", label: "الكل" }, ...PRODUCT_CATEGORIES];
 
-export default function ProductsPage() {
-  const [activeCategory, setActiveCategory] = useState("all");
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeCategory = searchParams.get("cat") || "all";
   const [sortBy, setSortBy] = useState("popular");
   const { addItem } = useCart();
-  const { products } = useProducts();
+  const { products, loading, error } = useProducts();
   const { offers } = useOffers();
 
-  const filtered = activeCategory === "all"
-    ? products
-    : products.filter((product) => product.category === activeCategory);
+  const filtered = filterProducts(products, new URLSearchParams(searchParams.toString()));
+  const setActiveCategory = (category: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (category === "all") params.delete("cat");
+    else params.set("cat", category);
+    router.push(`/products?${params.toString()}`, { scroll: false });
+  };
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "price-asc") return a.price - b.price;
@@ -111,6 +119,7 @@ export default function ProductsPage() {
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-500" />
               <select
+                aria-label="ترتيب المنتجات"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="border border-gray-200 rounded-lg py-2 px-4 text-sm focus:outline-none focus:border-[var(--primary)]"
@@ -129,7 +138,13 @@ export default function ProductsPage() {
             </div>
           ) : null}
 
-          <p className="text-gray-500 text-sm mb-6">{sorted.length} منتج</p>
+          <form action="/products" className="flex flex-wrap gap-3 mb-6">
+            <input name="q" defaultValue={searchParams.get("q") ?? ""} key={searchParams.get("q")} aria-label="البحث في المنتجات" placeholder="ابحث بالاسم أو المجموعة" className="min-w-0 flex-1 border rounded-lg p-3" />
+            <button className="rounded-lg bg-[var(--primary)] text-white px-5">بحث</button>
+            {searchParams.size > 0 && <Link href="/products" className="p-3 underline">مسح الفلاتر</Link>}
+          </form>
+          {loading ? <p role="status" className="py-12 text-center">جاري تحميل المنتجات...</p> : error ? <p role="alert" className="py-8 text-red-700">{error}</p> : <p className="text-gray-500 text-sm mb-6">{sorted.length} منتج</p>}
+          {!loading && !error && !sorted.length && <p className="py-12 text-center">لا توجد منتجات مطابقة. جرّب تغيير البحث أو الفلاتر.</p>}
 
           {/* Products Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -138,7 +153,7 @@ export default function ProductsPage() {
                 key={product.id}
                 className="bg-white rounded-2xl p-6 card-hover border border-gray-100 group"
               >
-                <Link href={`/products/${product.id}`}>
+                <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
                   <div className="relative aspect-[3/4] mb-4 bg-[var(--secondary)] rounded-xl overflow-hidden flex items-center justify-center">
                     <Image
                       src={product.image}
@@ -158,7 +173,7 @@ export default function ProductsPage() {
                   <p className="text-xs text-[var(--primary)] font-medium mb-1">
                     {product.range}
                   </p>
-                  <Link href={`/products/${product.id}`}>
+                  <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
                     <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--primary)] transition-colors">
                       {product.name}
                     </h3>
@@ -198,4 +213,8 @@ export default function ProductsPage() {
       </section>
     </>
   );
+}
+
+export default function ProductsPage() {
+  return <Suspense fallback={<p role="status" className="p-12 text-center">جاري تحميل المنتجات...</p>}><ProductsContent /></Suspense>;
 }

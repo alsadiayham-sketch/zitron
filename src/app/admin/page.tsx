@@ -8,40 +8,52 @@ import { formatCurrency, formatDate, type AdminOrder, type AdminUser } from "@/l
 import { AdminCard, AdminEmptyState, AdminPageHeader, LoadingState, StatusBadge } from "@/components/admin/AdminUI";
 import type { Product } from "@/lib/types";
 
+type DashboardOrder = AdminOrder & { isDemo?: boolean };
+
 export default function AdminDashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const stopProducts = onSnapshot(getCollection("products"), (snapshot) => {
-      setProducts(
-        snapshot.docs.map((doc) => ({
-          ...(doc.data() as Product),
-          id: doc.id,
-        }))
-      );
-      setLoading(false);
-    });
+    let remainingSources = 3;
+    const completeSource = () => {
+      remainingSources -= 1;
+      if (remainingSources === 0) setLoading(false);
+    };
+    const handleError = () => {
+      setLoadError("تعذر تحميل بعض مؤشرات لوحة التحكم. يمكنك تحديث الصفحة للمحاولة مجدداً.");
+      completeSource();
+    };
 
-    const stopOrders = onSnapshot(getCollection("orders"), (snapshot) => {
-      setOrders(
-        snapshot.docs.map((doc) => ({
-          ...(doc.data() as Omit<AdminOrder, "id">),
-          id: doc.id,
-        }))
-      );
-    });
+    const stopProducts = onSnapshot(
+      getCollection("products"),
+      (snapshot) => {
+        setProducts(snapshot.docs.map((doc) => ({ ...(doc.data() as Product), id: doc.id })));
+        completeSource();
+      },
+      handleError
+    );
 
-    const stopUsers = onSnapshot(getCollection("users"), (snapshot) => {
-      setUsers(
-        snapshot.docs.map((doc) => ({
-          ...(doc.data() as Omit<AdminUser, "id">),
-          id: doc.id,
-        }))
-      );
-    });
+    const stopOrders = onSnapshot(
+      getCollection("orders"),
+      (snapshot) => {
+        setOrders(snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<DashboardOrder, "id">), id: doc.id })));
+        completeSource();
+      },
+      handleError
+    );
+
+    const stopUsers = onSnapshot(
+      getCollection("users"),
+      (snapshot) => {
+        setUsers(snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<AdminUser, "id">), id: doc.id })));
+        completeSource();
+      },
+      handleError
+    );
 
     return () => {
       stopProducts();
@@ -50,16 +62,21 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  const revenue = useMemo(
-    () => orders.reduce((total, order) => total + Number(order.total || 0), 0),
+  const demoOrders = useMemo(
+    () => orders.filter((order) => order.isDemo === true || order.id.startsWith("demo-")),
     [orders]
+  );
+  const realOrders = useMemo(() => orders.filter((order) => !demoOrders.includes(order)), [demoOrders, orders]);
+  const revenue = useMemo(
+    () => realOrders.reduce((total, order) => total + Number(order.total || 0), 0),
+    [realOrders]
   );
 
   const recentOrders = useMemo(() => {
-    return [...orders]
+    return [...realOrders]
       .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
       .slice(0, 6);
-  }, [orders]);
+  }, [realOrders]);
 
   if (loading) {
     return <LoadingState label="جاري تحميل مؤشرات المتجر..." />;
@@ -71,6 +88,7 @@ export default function AdminDashboardPage() {
         title="لوحة التحكم"
         description="نظرة سريعة على أداء المتجر، آخر الطلبات، وإحصاءات قاعدة البيانات بشكل مباشر."
       />
+      {loadError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{loadError}</div> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -82,7 +100,7 @@ export default function AdminDashboardPage() {
           },
           {
             title: "إجمالي الطلبات",
-            value: orders.length.toString(),
+            value: realOrders.length.toString(),
             icon: ShoppingCart,
             accent: "bg-amber-100 text-amber-700",
           },
@@ -112,6 +130,11 @@ export default function AdminDashboardPage() {
           </AdminCard>
         ))}
       </section>
+      {demoOrders.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          تم استبعاد {demoOrders.length} طلب تجريبي من مؤشرات الطلبات والإيرادات.
+        </div>
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-[1.5fr,1fr]">
         <AdminCard>
@@ -157,13 +180,13 @@ export default function AdminDashboardPage() {
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">متوسط قيمة الطلب</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                {formatCurrency(orders.length ? revenue / orders.length : 0)}
+                {formatCurrency(realOrders.length ? revenue / realOrders.length : 0)}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">طلبات مكتملة</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                {orders.filter((order) => order.status === "completed").length}
+                {realOrders.filter((order) => order.status === "completed").length}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">

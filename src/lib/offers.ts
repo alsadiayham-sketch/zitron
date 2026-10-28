@@ -1,10 +1,20 @@
 import type { CartItem, Offer, Product } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/categories";
 
-export function isOfferActive(offer: Offer): boolean {
-  const now = new Date();
-  if (offer.startDate && new Date(offer.startDate) > now) return false;
-  if (offer.endDate && new Date(offer.endDate) < now) return false;
+function parseOfferDate(value: string | undefined) {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.NaN;
+}
+
+export function isOfferActive(offer: Offer, at = new Date()): boolean {
+  const now = at.getTime();
+  const start = parseOfferDate(offer.startDate);
+  const end = parseOfferDate(offer.endDate);
+
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  if (start !== null && start > now) return false;
+  if (end !== null && end < now) return false;
   return true;
 }
 
@@ -44,16 +54,67 @@ export function getSelectionCount(selectedProductIds: string[], productId: strin
   return selectedProductIds.filter((selectedId) => selectedId === productId).length;
 }
 
+export type CartCatalogIssue = {
+  item: CartItem;
+  product: Product | null;
+  type: "deleted" | "price_changed";
+};
+
+export function getRegularCartCatalogIssues(
+  items: CartItem[],
+  productMap: Map<string, Product>
+): CartCatalogIssue[] {
+  return items.flatMap<CartCatalogIssue>((item) => {
+    if (isComboCartItemId(item.id)) return [];
+
+    const product = productMap.get(item.id);
+    if (!product) {
+      return [{ item, product: null, type: "deleted" as const }];
+    }
+
+    const productPrice = Number(product.price);
+    if (!Number.isFinite(productPrice) || productPrice < 0) {
+      return [{ item, product: null, type: "deleted" as const }];
+    }
+
+    const cartPrice = Math.round(Number(item.price) * 100);
+    const catalogPrice = Math.round(productPrice * 100);
+    if (cartPrice !== catalogPrice) {
+      return [{ item, product, type: "price_changed" as const }];
+    }
+
+    return [];
+  });
+}
+
 export function buildComboCartItems(
   offer: Offer,
   selectedProductIds: string[],
   productMap: Map<string, Product>
-): Omit<CartItem, "quantity">[] {
-  const comboUnitPrice = Number(
-    ((offer.comboPrice ?? 0) / Math.max(1, offer.pickCount ?? 1)).toFixed(2)
-  );
+): CartItem[] {
+  const pickCount = Math.floor(Number(offer.pickCount));
+  const comboPrice = Number(offer.comboPrice);
+  if (
+    pickCount <= 0 ||
+    !Number.isFinite(comboPrice) ||
+    comboPrice < 0 ||
+    selectedProductIds.length !== pickCount
+  ) {
+    return [];
+  }
 
-  return selectedProductIds.flatMap((productId) => {
+  const counts = selectedProductIds.reduce<Map<string, number>>((result, productId) => {
+    result.set(productId, (result.get(productId) ?? 0) + 1);
+    return result;
+  }, new Map());
+
+  if (offer.uniqueOnly && Array.from(counts.values()).some((quantity) => quantity > 1)) {
+    return [];
+  }
+
+  const comboUnitPrice = comboPrice / pickCount;
+
+  return Array.from(counts.entries()).flatMap(([productId, quantity]) => {
     const product = productMap.get(productId);
     if (!product) return [];
 
@@ -64,6 +125,7 @@ export function buildComboCartItems(
         price: comboUnitPrice,
         image: product.image,
         range: product.range,
+        quantity,
       },
     ];
   });
@@ -107,6 +169,8 @@ export function doesOfferQualify(
   productMap: Map<string, Product>,
   cartSubtotal: number
 ) {
+  if (!isOfferActive(offer)) return false;
+
   if (offer.targetSections?.length) {
     const { amount, quantity } = getOfferSectionMetrics(items, productMap, offer.targetSections);
 

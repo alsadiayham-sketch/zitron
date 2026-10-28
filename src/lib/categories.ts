@@ -11,6 +11,10 @@ export const PRODUCT_CATEGORIES = [
   { id: "deodorants", label: "مزيلات العرق" },
   { id: "masks", label: "الأقنعة" },
   { id: "hands", label: "العناية باليدين" },
+  { id: "feet", label: "العناية بالقدمين" },
+  { id: "lotions", label: "اللوشن والبخاخات" },
+  { id: "eye-lip", label: "محيط العين والشفاه" },
+  { id: "body-cleansers", label: "منظفات الجسم" },
 ] as const;
 
 export const CATEGORY_LABELS = Object.fromEntries(

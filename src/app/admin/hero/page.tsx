@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { deleteDoc, onSnapshot, query, setDoc, orderBy, updateDoc } from "firebase/firestore";
+import { deleteDoc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
 import { ArrowDownUp, Pencil, Plus, Trash2, Upload, Video } from "lucide-react";
-import { getCollection, getDocRef } from "@/lib/firebase";
-import { slugify, uploadImageToImgbb, type AdminHeroSlide } from "@/lib/admin";
+import { getCollection, getDocRef, rawDb } from "@/lib/firebase";
+import { getErrorMessage, isValidHttpUrl, slugify, uploadImageToImgbb, type AdminHeroSlide } from "@/lib/admin";
 import {
   AdminCard,
   AdminEmptyState,
@@ -38,15 +38,23 @@ export default function AdminHeroPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(query(getCollection("heroDisplay"), orderBy("order")), (snapshot) => {
-      setSlides(
-        snapshot.docs.map((doc) => ({
-          ...(doc.data() as Omit<AdminHeroSlide, "id">),
-          id: doc.id,
-        }))
-      );
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      getCollection("heroDisplay"),
+      (snapshot) => {
+        const nextSlides = snapshot.docs
+          .map((doc) => ({
+            ...(doc.data() as Omit<AdminHeroSlide, "id">),
+            id: doc.id,
+          }))
+          .sort((a, b) => Number(a.order || Number.MAX_SAFE_INTEGER) - Number(b.order || Number.MAX_SAFE_INTEGER));
+        setSlides(nextSlides);
+        setLoading(false);
+      },
+      () => {
+        setFormError("تعذر تحميل الشرائح حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -88,8 +96,20 @@ export default function AdminHeroPage() {
       setFormError(form.type === "video" ? "يرجى إضافة رابط الفيديو." : "يرجى رفع صورة أو إضافة رابطها.");
       return;
     }
+    if (!isValidHttpUrl(form.url.trim())) {
+      setFormError("يرجى إدخال رابط صحيح يبدأ بـ http أو https.");
+      return;
+    }
+    if (!Number.isInteger(form.order) || form.order < 1) {
+      setFormError("يرجى إدخال ترتيب صحيح يبدأ من 1.");
+      return;
+    }
 
     const docId = form.id || slugify(form.title || `hero-${form.order}`) || crypto.randomUUID();
+    if (!isEditing && slides.some((slide) => slide.id === docId)) {
+      setFormError("توجد شريحة بالمعرّف نفسه بالفعل. غيّر العنوان أو عدّل الشريحة الموجودة.");
+      return;
+    }
     const payload: AdminHeroSlide = {
       ...form,
       id: docId,
@@ -101,10 +121,21 @@ export default function AdminHeroPage() {
 
     try {
       setIsSaving(true);
-      await setDoc(getDocRef("heroDisplay", docId), payload);
+      const currentSlide = slides.find((slide) => slide.id === docId);
+      const conflictingSlide = slides.find((slide) => slide.id !== docId && slide.order === payload.order);
+      if (conflictingSlide) {
+        const batch = writeBatch(rawDb);
+        batch.set(getDocRef("heroDisplay", docId), payload);
+        batch.update(getDocRef("heroDisplay", conflictingSlide.id), {
+          order: currentSlide?.order ?? slides.length + 1,
+        });
+        await batch.commit();
+      } else {
+        await setDoc(getDocRef("heroDisplay", docId), payload);
+      }
       setIsModalOpen(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "فشل حفظ الشريحة.");
+      setFormError(getErrorMessage(error, "فشل حفظ الشريحة."));
     } finally {
       setIsSaving(false);
     }
@@ -112,12 +143,29 @@ export default function AdminHeroPage() {
 
   const deleteSlide = async (slide: AdminHeroSlide) => {
     if (!window.confirm(`هل تريد حذف الشريحة "${slide.title || slide.id}"؟`)) return;
-    await deleteDoc(getDocRef("heroDisplay", slide.id));
+    try {
+      setFormError("");
+      await deleteDoc(getDocRef("heroDisplay", slide.id));
+    } catch (error) {
+      setFormError(getErrorMessage(error, "تعذر حذف الشريحة حالياً."));
+    }
   };
 
   const updateSlideOrder = async (slide: AdminHeroSlide, newOrder: number) => {
-    if (!Number.isFinite(newOrder) || newOrder < 1 || newOrder === slide.order) return;
-    await updateDoc(getDocRef("heroDisplay", slide.id), { order: newOrder });
+    if (!Number.isInteger(newOrder) || newOrder < 1 || newOrder === slide.order) return;
+
+    try {
+      setFormError("");
+      const conflictingSlide = slides.find((item) => item.id !== slide.id && item.order === newOrder);
+      const batch = writeBatch(rawDb);
+      batch.update(getDocRef("heroDisplay", slide.id), { order: newOrder });
+      if (conflictingSlide) {
+        batch.update(getDocRef("heroDisplay", conflictingSlide.id), { order: slide.order });
+      }
+      await batch.commit();
+    } catch (error) {
+      setFormError(getErrorMessage(error, "تعذر تحديث ترتيب الشريحة حالياً."));
+    }
   };
 
   const orderedSummary = useMemo(() => slides.map((slide) => slide.order).join(" • "), [slides]);
@@ -159,6 +207,11 @@ export default function AdminHeroPage() {
       </section>
 
       <AdminCard>
+        {formError && !isModalOpen ? (
+          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {formError}
+          </div>
+        ) : null}
         {slides.length === 0 ? (
           <AdminEmptyState title="لا توجد شرائح حالياً" description="أضف أول شريحة لتظهر في البانر الرئيسي للموقع." />
         ) : (
@@ -225,7 +278,12 @@ export default function AdminHeroPage() {
 
       <AdminModal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          if (!isSaving && !isUploading) {
+            setIsModalOpen(false);
+            setFormError("");
+          }
+        }}
         title={isEditing ? "تعديل الشريحة" : "إضافة شريحة جديدة"}
         description="يمكنك استخدام صورة مرفوعة إلى ImgBB أو رابط فيديو مباشر للشريحة."
       >
@@ -266,10 +324,10 @@ export default function AdminHeroPage() {
                   <FieldLabel>رفع صورة</FieldLabel>
                   <p className="text-xs text-slate-500">سيتم رفع الصورة إلى ImgBB واستخدام الرابط الناتج تلقائياً.</p>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                <label className={`inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 ${isUploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                   <Upload className="h-4 w-4" />
                   {isUploading ? "جاري الرفع..." : "اختيار صورة"}
-                  <input type="file" accept="image/*" className="hidden" onChange={(event) => void handleImageUpload(event)} />
+                  <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={(event) => void handleImageUpload(event)} />
                 </label>
               </div>
             </div>

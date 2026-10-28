@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function normalizeLocations(value: unknown): SavedLocation[] {
   if (!Array.isArray(value)) return [];
-  return value
+  const locations = value
     .map((location, index) => ({
       id: typeof location?.id === "string" && location.id.trim() ? location.id : `location-${index}`,
       label: typeof location?.label === "string" ? location.label : "عنوان محفوظ",
@@ -38,6 +38,12 @@ function normalizeLocations(value: unknown): SavedLocation[] {
       isDefault: Boolean(location?.isDefault),
     }))
     .filter((location) => location.city || location.fullAddress || location.label);
+
+  const defaultIndex = locations.findIndex((location) => location.isDefault);
+  return locations.map((location, index) => ({
+    ...location,
+    isDefault: locations.length > 0 && index === (defaultIndex >= 0 ? defaultIndex : 0),
+  }));
 }
 
 function normalizeProfile(user: User, value: unknown): UserProfileDoc {
@@ -67,7 +73,9 @@ export function getAuthErrorMessage(error: unknown) {
     case "auth/network-request-failed": return "تعذر الاتصال حالياً. تحقق من الإنترنت ثم حاول مرة أخرى.";
     case "auth/configuration-not-found": return "خدمة المصادقة غير مفعّلة حالياً. يرجى تفعيل Email/Password من إعدادات Firebase.";
     case "auth/operation-not-allowed": return "تسجيل الدخول بالبريد الإلكتروني غير مفعّل. يرجى التواصل مع مدير النظام.";
-    default: return error instanceof Error && error.message ? error.message : "حدث خطأ غير متوقع. حاول مرة أخرى.";
+    case "permission-denied": return "لا تملك صلاحية تنفيذ هذا الإجراء.";
+    case "unavailable": return "الخدمة غير متاحة حالياً. تحقق من الاتصال ثم حاول مرة أخرى.";
+    default: return "حدث خطأ غير متوقع. حاول مرة أخرى.";
   }
 }
 
@@ -82,9 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextUser);
       setLoading(false);
       setProfileLoading(Boolean(nextUser));
-      if (!nextUser) {
-        setProfile(null);
-      }
+      setProfile(null);
     });
     return () => unsubscribe();
   }, []);

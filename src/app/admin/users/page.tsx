@@ -5,7 +5,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { Eye, KeyRound, Pencil, Trash2 } from "lucide-react";
 import { auth, getCollection, getDocRef } from "@/lib/firebase";
-import { formatDate, type AdminUser } from "@/lib/admin";
+import { formatDate, getErrorMessage, type AdminUser } from "@/lib/admin";
 import { getAuthErrorMessage } from "@/context/AuthContext";
 import {
   AdminCard,
@@ -36,15 +36,24 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [feedbackIsError, setFeedbackIsError] = useState(false);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(getCollection("users"), (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<AdminUser, "id">), id: doc.id }));
-      data.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
-      setUsers(data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      getCollection("users"),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<AdminUser, "id">), id: doc.id }));
+        data.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+        setUsers(data);
+        setLoading(false);
+      },
+      () => {
+        setFeedback("تعذر تحميل بيانات العملاء حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setFeedbackIsError(true);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -54,6 +63,7 @@ export default function AdminUsersPage() {
   const openEdit = (user: AdminUser) => {
     setForm(user);
     setFormError("");
+    setFeedback("");
     setIsEditOpen(true);
   };
 
@@ -78,8 +88,9 @@ export default function AdminUsersPage() {
       );
       setIsEditOpen(false);
       setFeedback("تم تحديث بيانات العميل بنجاح.");
+      setFeedbackIsError(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "فشل حفظ بيانات العميل.");
+      setFormError(getErrorMessage(error, "فشل حفظ بيانات العميل."));
     } finally {
       setIsSaving(false);
     }
@@ -87,8 +98,15 @@ export default function AdminUsersPage() {
 
   const deleteUser = async (user: AdminUser) => {
     if (!window.confirm(`هل تريد حذف العميل "${user.name}"؟`)) return;
-    await deleteDoc(getDocRef("users", user.id));
-    if (selectedUser?.id === user.id) setSelectedUser(null);
+    try {
+      await deleteDoc(getDocRef("users", user.id));
+      if (selectedUser?.id === user.id) setSelectedUser(null);
+      setFeedback("تم حذف العميل بنجاح.");
+      setFeedbackIsError(false);
+    } catch (error) {
+      setFeedback(getErrorMessage(error, "تعذر حذف العميل حالياً."));
+      setFeedbackIsError(true);
+    }
   };
 
   const resetPassword = async (user: AdminUser) => {
@@ -105,8 +123,10 @@ export default function AdminUsersPage() {
       setResettingUserId(user.id);
       await sendPasswordResetEmail(auth, user.email);
       setFeedback(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}.`);
+      setFeedbackIsError(false);
     } catch (error) {
       setFeedback(getAuthErrorMessage(error));
+      setFeedbackIsError(true);
     } finally {
       setResettingUserId(null);
     }
@@ -120,7 +140,7 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <AdminPageHeader title="إدارة العملاء" description="اعرض بيانات المستخدمين، حدّث معلومات التواصل، وأرسل روابط إعادة تعيين كلمة المرور عند الحاجة." action={<div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">عدد العملاء: {users.length}</div>} />
 
-      {feedback ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{feedback}</div> : null}
+      {feedback ? <div className={`rounded-2xl px-4 py-3 text-sm ${feedbackIsError ? "border border-rose-200 bg-rose-50 text-rose-700" : "border border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{feedback}</div> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <AdminCard><p className="text-sm text-slate-500">إجمالي العملاء</p><p className="mt-3 text-3xl font-bold text-slate-900">{users.length}</p></AdminCard>
@@ -178,7 +198,7 @@ export default function AdminUsersPage() {
         ) : null}
       </AdminModal>
 
-      <AdminModal open={isEditOpen} onClose={() => setIsEditOpen(false)} title="تعديل بيانات العميل" description="حدّث معلومات التواصل المحفوظة لهذا العميل." size="max-w-2xl">
+      <AdminModal open={isEditOpen} onClose={() => { if (!isSaving) setIsEditOpen(false); }} title="تعديل بيانات العميل" description="حدّث معلومات التواصل المحفوظة لهذا العميل." size="max-w-2xl">
         <form onSubmit={saveUser} className="space-y-5">
           <div><FieldLabel>الاسم</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
           <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>

@@ -5,15 +5,25 @@ export const CUSTOMER_NAME_STORAGE_KEY = "zitron-customer-name";
 export const CUSTOMER_PHONE_STORAGE_KEY = "zitron-customer-phone";
 export const CUSTOMER_ADDRESS_STORAGE_KEY = "zitron-customer-address";
 export const CUSTOMER_CITY_STORAGE_KEY = "zitron-customer-city";
+export const ORDER_HISTORY_STORAGE_KEY = "zitron-order-history";
 
 const PRINTABLE_STATUSES: OrderStatus[] = ["prepared", "out_for_delivery", "completed"];
+const MAX_LOCAL_ORDERS = 20;
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 export function generateOrderId() {
-  return `ZT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const randomValue =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().replace(/-/g, "")
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  return `ZT-${randomValue.slice(0, 8).toUpperCase()}`;
+}
+
+export function normalizePhone(value: string) {
+  return value.trim().replace(/[\s()-]/g, "");
 }
 
 export function extractCityFromAddress(address: string) {
@@ -40,33 +50,102 @@ export function parseOrderStatus(value: unknown): OrderStatus {
 
 export function normalizeOrder(docId: string, data: DocumentData): AdminOrder {
   const items = Array.isArray(data.items)
-    ? data.items.map((item, index) => ({
-        id: typeof item?.id === "string" ? item.id : `${docId}-${index}`,
-        name: typeof item?.name === "string" ? item.name : "منتج بدون اسم",
-        quantity: Number(item?.quantity || 0),
-        price: Number(item?.price || 0),
-        image: typeof item?.image === "string" ? item.image : undefined,
-      }))
+    ? data.items.flatMap((item, index) => {
+        const quantity = Math.floor(Number(item?.quantity));
+        const price = Number(item?.price);
+        if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price < 0) {
+          return [];
+        }
+
+        return [{
+          id: typeof item?.id === "string" ? item.id : `${docId}-${index}`,
+          name: typeof item?.name === "string" && item.name.trim() ? item.name : "منتج بدون اسم",
+          quantity,
+          price,
+          image: typeof item?.image === "string" ? item.image : undefined,
+        }];
+      })
     : [];
 
   const customerAddress = typeof data.customerAddress === "string" ? data.customerAddress : "";
   const city = typeof data.city === "string" && data.city.trim() ? data.city.trim() : extractCityFromAddress(customerAddress);
+  const calculatedTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const storedTotal = Number(data.total);
+  const total = Number.isFinite(storedTotal) && storedTotal >= 0 ? storedTotal : calculatedTotal;
+  const dateValue = typeof data.date === "string" && Number.isFinite(Date.parse(data.date))
+    ? data.date
+    : new Date().toISOString();
 
   return {
     id: docId,
     orderId: typeof data.orderId === "string" && data.orderId.trim() ? data.orderId : docId,
     items,
     customerName: typeof data.customerName === "string" ? data.customerName : "",
-    customerPhone: typeof data.customerPhone === "string" ? data.customerPhone : "",
+    customerPhone: typeof data.customerPhone === "string" ? normalizePhone(data.customerPhone) : "",
     customerAddress,
     notes: typeof data.notes === "string" ? data.notes : "",
     city,
-    total: Number(data.total || 0),
+    total: Math.round(total * 100) / 100,
     status: parseOrderStatus(data.status),
-    date: typeof data.date === "string" ? data.date : new Date().toISOString(),
+    date: dateValue,
     userId: typeof data.userId === "string" ? data.userId : undefined,
   };
 }
+
+export function parseStoredOrders(value: string | null): AdminOrder[] {
+  if (!value) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .flatMap((order, index) => {
+        if (!order || typeof order !== "object") return [];
+        const data = order as DocumentData;
+        const id = typeof data.id === "string" && data.id.trim()
+          ? data.id
+          : typeof data.orderId === "string" && data.orderId.trim()
+            ? data.orderId
+            : `local-order-${index}`;
+        return [normalizeOrder(id, data)];
+      })
+      .slice(0, MAX_LOCAL_ORDERS);
+  } catch {
+    return [];
+  }
+}
+
+export function saveOrderToLocalHistory(order: AdminOrder) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const existing = parseStoredOrders(window.localStorage.getItem(ORDER_HISTORY_STORAGE_KEY));
+    const nextOrders = [order, ...existing.filter((item) => item.id !== order.id && item.orderId !== order.orderId)]
+      .slice(0, MAX_LOCAL_ORDERS);
+    window.localStorage.setItem(ORDER_HISTORY_STORAGE_KEY, JSON.stringify(nextOrders));
+  } catch {
+    // The Firestore order remains valid even when browser storage is unavailable.
+  }
+}
+
+export const DEMO_ORDERS: AdminOrder[] = [
+  {
+    id: "demo-order-1",
+    orderId: "ZT-DEMO01",
+    items: [
+      { id: "demo-serum", name: "سيروم فيتامين C التجريبي", quantity: 1, price: 79 },
+      { id: "demo-cleanser", name: "غسول لطيف تجريبي", quantity: 2, price: 42.5 },
+    ],
+    customerName: "عميل تجريبي",
+    customerPhone: "0590000000",
+    customerAddress: "عنوان تجريبي",
+    city: "القدس",
+    total: 164,
+    status: "out_for_delivery",
+    date: "2026-10-20T10:30:00.000Z",
+  },
+];
 
 export function getOrderDisplayId(order: Pick<AdminOrder, "orderId" | "id">) {
   return order.orderId || order.id;

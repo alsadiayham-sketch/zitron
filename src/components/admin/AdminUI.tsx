@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { X, LoaderCircle, Inbox } from "lucide-react";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_STYLES, type OrderStatus } from "@/lib/admin";
 
@@ -53,14 +53,30 @@ export function AdminModal({
   children: ReactNode;
   size?: string;
 }) {
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-8">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-modal-title"
+    >
       <div className={`w-full ${size} rounded-[2rem] bg-white shadow-2xl`}>
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+            <h2 id="admin-modal-title" className="text-xl font-bold text-slate-900">{title}</h2>
             {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
           </div>
           <button

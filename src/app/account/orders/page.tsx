@@ -9,7 +9,13 @@ import { getCollection } from "@/lib/firebase";
 import { type AdminOrder } from "@/lib/admin";
 import { AdminModal, LoadingState, StatusBadge } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";
-import { CUSTOMER_PHONE_STORAGE_KEY, getOrderDisplayId, normalizeOrder } from "@/lib/order-utils";
+import {
+  CUSTOMER_PHONE_STORAGE_KEY,
+  getOrderDisplayId,
+  normalizeOrder,
+  ORDER_HISTORY_STORAGE_KEY,
+  parseStoredOrders,
+} from "@/lib/order-utils";
 import { formatCurrency, formatDate } from "@/lib/admin";
 
 function mergeOrders(primary: AdminOrder[], secondary: AdminOrder[]) {
@@ -23,20 +29,31 @@ function mergeOrders(primary: AdminOrder[], secondary: AdminOrder[]) {
 
 export default function AccountOrdersPage() {
   const { user, profile, loading: authLoading } = useAuth();
-  const [highlightedOrderId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("orderId")));
-  const [storedPhone] = useState(() => (typeof window === "undefined" ? "" : window.localStorage.getItem(CUSTOMER_PHONE_STORAGE_KEY) ?? ""));
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [storedPhone, setStoredPhone] = useState("");
+  const [localOrders, setLocalOrders] = useState<AdminOrder[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [ready, setReady] = useState(false);
+  const [ordersKey, setOrdersKey] = useState("");
+  const [readyKey, setReadyKey] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   const effectivePhone = (profile?.phone || storedPhone).trim();
   const shouldListen = !authLoading && Boolean(user || effectivePhone);
+  const subscriptionKey = `${user?.uid ?? "guest"}:${effectivePhone}`;
 
   useEffect(() => {
-    if (!shouldListen) {
-      return;
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setHighlightedOrderId(new URLSearchParams(window.location.search).get("orderId"));
+      setStoredPhone(window.localStorage.getItem(CUSTOMER_PHONE_STORAGE_KEY) ?? "");
+      setLocalOrders(parseStoredOrders(window.localStorage.getItem(ORDER_HISTORY_STORAGE_KEY)));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!shouldListen) return;
 
     let userOrders: AdminOrder[] = [];
     let phoneOrders: AdminOrder[] = [];
@@ -44,36 +61,49 @@ export default function AccountOrdersPage() {
 
     const syncOrders = () => {
       setOrders(mergeOrders(userOrders, phoneOrders));
-      setReady(true);
+      setOrdersKey(subscriptionKey);
+      setReadyKey(subscriptionKey);
+      setLoadError("");
+    };
+    const handleError = () => {
+      setLoadError("تعذر تحديث الطلبات من الشبكة. يتم عرض الطلبات المحفوظة على هذا الجهاز.");
+      setReadyKey(subscriptionKey);
     };
 
     if (user) {
       unsubscribers.push(onSnapshot(query(getCollection("orders"), where("userId", "==", user.uid)), (snapshot) => {
         userOrders = snapshot.docs.map((doc) => normalizeOrder(doc.id, doc.data()));
         syncOrders();
-      }));
+      }, handleError));
     }
 
     if (effectivePhone) {
       unsubscribers.push(onSnapshot(query(getCollection("orders"), where("customerPhone", "==", effectivePhone)), (snapshot) => {
         phoneOrders = snapshot.docs.map((doc) => normalizeOrder(doc.id, doc.data()));
         syncOrders();
-      }));
+      }, handleError));
     }
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [effectivePhone, shouldListen, user]);
+  }, [effectivePhone, shouldListen, subscriptionKey, user]);
 
-  const displayedOrders = useMemo(() => (shouldListen ? orders : []), [orders, shouldListen]);
-  const isLoading = authLoading || (shouldListen && !ready);
+  const displayedOrders = useMemo(
+    () => mergeOrders(localOrders, shouldListen && ordersKey === subscriptionKey ? orders : []),
+    [localOrders, orders, ordersKey, shouldListen, subscriptionKey]
+  );
+  const isLoading = authLoading || (shouldListen && readyKey !== subscriptionKey);
   const hasHighlightedOrder = useMemo(() => displayedOrders.some((order) => getOrderDisplayId(order) === highlightedOrderId), [displayedOrders, highlightedOrderId]);
 
   const copyOrderId = async (orderId: string) => {
-    await navigator.clipboard.writeText(orderId);
-    setCopiedOrderId(orderId);
-    window.setTimeout(() => setCopiedOrderId(null), 1500);
+    try {
+      await navigator.clipboard.writeText(orderId);
+      setCopiedOrderId(orderId);
+      window.setTimeout(() => setCopiedOrderId(null), 1500);
+    } catch {
+      setLoadError("تعذر نسخ رقم الطلب تلقائياً. حدده وانسخه يدوياً.");
+    }
   };
 
   if (isLoading) {
@@ -89,6 +119,8 @@ export default function AccountOrdersPage() {
         </div>
         <Link href="/track" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[var(--primary)] hover:text-[var(--primary)]">تتبع طلب برقم الطلب</Link>
       </div>
+
+      {loadError ? <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{loadError}</div> : null}
 
       {highlightedOrderId && hasHighlightedOrder ? <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><span>تم تسجيل طلبك بنجاح. رقم الطلب الجديد: {highlightedOrderId}</span><button type="button" onClick={() => void copyOrderId(highlightedOrderId)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 font-semibold text-emerald-700 transition hover:bg-emerald-100">{copiedOrderId === highlightedOrderId ? "تم النسخ!" : "نسخ رقم الطلب"}</button></div> : null}
 

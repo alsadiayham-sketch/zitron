@@ -11,6 +11,7 @@ export type { HeroSlide, SiteSettings };
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -21,22 +22,25 @@ export function useProducts() {
           id: doc.id,
         })) as Product[];
         setProducts(prods);
+        setError("");
         setLoading(false);
       },
       (error) => {
         console.error("Error fetching products:", error);
+        setError("تعذر تحميل المنتجات. تحقق من اتصالك وأعد تحميل الصفحة.");
         setLoading(false);
       }
     );
     return () => unsubscribe();
   }, []);
 
-  return { products, loading };
+  return { products, loading, error };
 }
 
 export function useOffers() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -47,10 +51,12 @@ export function useOffers() {
           id: doc.id,
         })) as Offer[];
         setOffers(nextOffers);
+        setError("");
         setLoading(false);
       },
       (error) => {
         console.error("Error fetching offers:", error);
+        setError("تعذر تحميل العروض. تحقق من اتصالك وأعد تحميل الصفحة.");
         setLoading(false);
       }
     );
@@ -58,7 +64,7 @@ export function useOffers() {
     return () => unsubscribe();
   }, []);
 
-  return { offers, loading };
+  return { offers, loading, error };
 }
 
 // Hook to get hero display slides

@@ -14,7 +14,7 @@ import {
   SelectInput,
   TextInput,
 } from "@/components/admin/AdminUI";
-import { formatCurrency, slugify } from "@/lib/admin";
+import { formatCurrency, getErrorMessage, isValidNonNegativeNumber, slugify } from "@/lib/admin";
 import { CATEGORY_LABELS, PRODUCT_CATEGORIES } from "@/lib/categories";
 import { getCollection, getDocRef } from "@/lib/firebase";
 import { getOfferSectionLabel, isOfferActive } from "@/lib/offers";
@@ -74,7 +74,7 @@ function ProductPicker({
       if (
         search.trim() &&
         !product.name.includes(search.trim()) &&
-        !product.nameEn.toLowerCase().includes(search.trim().toLowerCase())
+        !(product.nameEn ?? "").toLowerCase().includes(search.trim().toLowerCase())
       ) {
         return false;
       }
@@ -192,13 +192,21 @@ function SectionPicker({
 
 function formatDateLabel(dateStr?: string) {
   if (!dateStr) return "غير محدد";
-  return new Date(dateStr).toLocaleDateString("ar-PS", { year: "numeric", month: "short", day: "numeric" });
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime())
+    ? "تاريخ غير صالح"
+    : date.toLocaleDateString("ar-PS", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function getOfferStatus(offer: Offer): { label: string; color: string } {
   const now = new Date();
-  if (offer.startDate && new Date(offer.startDate) > now) return { label: "لم يبدأ", color: "bg-amber-100 text-amber-700" };
-  if (offer.endDate && new Date(offer.endDate) < now) return { label: "منتهي", color: "bg-slate-200 text-slate-600" };
+  const start = offer.startDate ? new Date(offer.startDate) : null;
+  const end = offer.endDate ? new Date(offer.endDate) : null;
+  if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime()))) {
+    return { label: "تاريخ غير صالح", color: "bg-rose-100 text-rose-700" };
+  }
+  if (start && start > now) return { label: "لم يبدأ", color: "bg-amber-100 text-amber-700" };
+  if (end && end < now) return { label: "منتهي", color: "bg-slate-200 text-slate-600" };
   return { label: "فعّال", color: "bg-emerald-100 text-emerald-700" };
 }
 
@@ -241,26 +249,41 @@ export default function AdminOffersPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [pageError, setPageError] = useState("");
   const [form, setForm] = useState<Offer>(emptyOffer);
 
   useEffect(() => {
-    const unsubscribeOffers = onSnapshot(getCollection("offers"), (snapshot) => {
-      const data = snapshot.docs
-        .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
-        .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    const unsubscribeOffers = onSnapshot(
+      getCollection("offers"),
+      (snapshot) => {
+        const data = snapshot.docs
+          .map((doc) => ({ ...(doc.data() as Omit<Offer, "id">), id: doc.id }))
+          .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
-      setOffers(data);
-      setOffersLoading(false);
-    });
+        setOffers(data);
+        setOffersLoading(false);
+      },
+      () => {
+        setPageError("تعذر تحميل العروض حالياً. حدّث الصفحة وحاول مرة أخرى.");
+        setOffersLoading(false);
+      }
+    );
 
-    const unsubscribeProducts = onSnapshot(getCollection("products"), (snapshot) => {
-      const data = snapshot.docs
-        .map((doc) => ({ ...(doc.data() as Omit<Product, "id">), id: doc.id }))
-        .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+    const unsubscribeProducts = onSnapshot(
+      getCollection("products"),
+      (snapshot) => {
+        const data = snapshot.docs
+          .map((doc) => ({ ...(doc.data() as Omit<Product, "id">), id: doc.id }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ar"));
 
-      setProducts(data);
-      setProductsLoading(false);
-    });
+        setProducts(data);
+        setProductsLoading(false);
+      },
+      () => {
+        setPageError("تعذر تحميل المنتجات اللازمة لإدارة العروض. حدّث الصفحة وحاول مرة أخرى.");
+        setProductsLoading(false);
+      }
+    );
 
     return () => {
       unsubscribeOffers();
@@ -382,24 +405,28 @@ export default function AdminOffersPage() {
     }
 
     if (form.type === "combo") {
-      if (pickCount <= 0) {
+      if (!Number.isInteger(pickCount) || pickCount <= 0) {
         setFormError("يرجى إدخال عدد المنتجات التي يختارها العميل.");
         return;
       }
 
-      if (comboPrice <= 0) {
+      if (!isValidNonNegativeNumber(comboPrice) || comboPrice <= 0) {
         setFormError("يرجى إدخال السعر الثابت لعرض الكومبو.");
+        return;
+      }
+      if (form.uniqueOnly && pickCount > eligibleProducts.length) {
+        setFormError("عدد المنتجات المختارة أكبر من عدد المنتجات المتاحة في عرض المنتجات الفريدة.");
         return;
       }
     }
 
     if ((form.type === "free_shipping" || form.type === "free_product") && targetSections.length > 0 && minQuantity > 0) {
-      if (minQuantity <= 0) {
+      if (!Number.isInteger(minQuantity) || minQuantity <= 0) {
         setFormError("يرجى إدخال الحد الأدنى للكمية بشكل صحيح.");
         return;
       }
     } else if (form.type === "free_shipping" || form.type === "free_product") {
-      if (minAmount <= 0) {
+      if (!isValidNonNegativeNumber(minAmount) || minAmount <= 0) {
         setFormError("يرجى إدخال الحد الأدنى للطلب بشكل صحيح.");
         return;
       }
@@ -411,6 +438,10 @@ export default function AdminOffersPage() {
     }
 
     const docId = form.id || slugify(`${form.type}-${title}`) || crypto.randomUUID();
+    if (!isEditing && offers.some((offer) => offer.id === docId)) {
+      setFormError("يوجد عرض بالمعرّف نفسه بالفعل. غيّر نص العرض أو عدّل العرض الموجود.");
+      return;
+    }
     const raw: Record<string, unknown> = {
       id: docId,
       type: form.type,
@@ -440,7 +471,7 @@ export default function AdminOffersPage() {
       await setDoc(getDocRef("offers", docId), raw);
       setIsModalOpen(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "فشل حفظ العرض.");
+      setFormError(getErrorMessage(error, "فشل حفظ العرض."));
     } finally {
       setIsSaving(false);
     }
@@ -448,7 +479,12 @@ export default function AdminOffersPage() {
 
   const deleteOffer = async (offer: Offer) => {
     if (!window.confirm(`هل تريد حذف العرض "${offer.title}"؟`)) return;
-    await deleteDoc(getDocRef("offers", offer.id));
+    try {
+      setPageError("");
+      await deleteDoc(getDocRef("offers", offer.id));
+    } catch (error) {
+      setPageError(getErrorMessage(error, "تعذر حذف العرض حالياً."));
+    }
   };
 
   if (loading) {
@@ -473,6 +509,7 @@ export default function AdminOffersPage() {
           </button>
         }
       />
+      {pageError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{pageError}</div> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <AdminCard>

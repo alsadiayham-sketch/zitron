@@ -4,7 +4,7 @@ import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import Link from "next/link";
 import { Star, ShoppingBag, Minus, Plus, Check, Sparkles } from "lucide-react";
-import { useEffect, use, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getDoc } from "firebase/firestore";
 import { getDocRef } from "@/lib/firebase";
 import { useOffers } from "@/lib/firebase-hooks";
@@ -12,11 +12,12 @@ import { formatCurrency } from "@/lib/admin";
 import { isOfferActive } from "@/lib/offers";
 import type { Product } from "@/lib/types";
 
-export default function ProductDetailClient({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const isPlaceholder = id === "placeholder";
+export default function ProductDetailClient({ id }: { id: string }) {
+  const isPlaceholder = !id || id === "placeholder" || id.includes("/");
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(!isPlaceholder);
+  const [error, setError] = useState("");
+  const [activeImage, setActiveImage] = useState(0);
   const { addItem } = useCart();
   const { offers } = useOffers();
   const [quantity, setQuantity] = useState(1);
@@ -28,20 +29,23 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
       return;
     }
 
+    let cancelled = false;
     async function fetchProduct() {
       try {
         const docRef = getDocRef("products", id);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        if (!cancelled && docSnap.exists()) {
           setProduct({ ...docSnap.data(), id: docSnap.id } as Product);
         }
       } catch (error) {
         console.error("Error fetching product:", error);
+        if (!cancelled) setError("تعذر تحميل المنتج. تحقق من اتصالك ثم أعد المحاولة.");
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
 
     void fetchProduct();
+    return () => { cancelled = true; };
   }, [id, isPlaceholder]);
 
   const activeSectionOffers = useMemo(
@@ -69,7 +73,8 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--primary)] mb-4">المنتج غير موجود</h1>
+          <h1 role={error ? "alert" : undefined} className="text-2xl font-bold text-[var(--primary)] mb-4">{error || "المنتج غير موجود"}</h1>
+          {error && <button className="block mx-auto mb-4 underline" onClick={() => window.location.reload()}>إعادة المحاولة</button>}
           <Link href="/products" className="text-[var(--primary)] hover:underline">
             العودة للمنتجات
           </Link>
@@ -92,6 +97,8 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
     setTimeout(() => setAdded(false), 2000);
   };
 
+  const images = [...new Set([product.image, ...(product.images ?? [])].filter(Boolean))];
+
   return (
     <>
       {/* Breadcrumb */}
@@ -112,7 +119,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Image */}
-            <div className="bg-[var(--secondary)] rounded-2xl p-8 flex items-center justify-center relative">
+            <div className="bg-[var(--secondary)] rounded-2xl p-8 flex flex-col items-center justify-center relative">
               {product.badge && (
                 <span className="absolute top-4 right-4 bg-[var(--accent)] text-white text-sm px-4 py-1 rounded-full">
                   {product.badge}
@@ -120,7 +127,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               )}
               <div className="relative w-full max-w-[400px] aspect-[4/5]">
                 <Image
-                  src={product.image}
+                  src={images[activeImage] || "/images/product-unavailable.svg"}
                   alt={product.name}
                   fill
                   className="object-contain"
@@ -128,6 +135,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                   priority
                 />
               </div>
+              {images.length > 1 && <div className="mt-4 flex flex-wrap gap-3">{images.map((image, index) => <button key={image} aria-label={`صورة المنتج ${index + 1}`} aria-pressed={activeImage === index} onClick={() => setActiveImage(index)} className={`relative h-16 w-16 rounded-lg border ${activeImage === index ? "border-[var(--primary)]" : "border-gray-300"}`}><Image src={image} alt="" fill sizes="64px" className="object-contain" /></button>)}</div>}
             </div>
 
             {/* Details */}
@@ -172,7 +180,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               {/* Volume & Skin Type */}
               <div className="flex flex-wrap gap-4 mb-6 text-sm">
                 <span className="bg-gray-100 px-3 py-1 rounded-full">{product.volume}</span>
-                {product.skinType.map((st) => (
+                {(product.skinType ?? []).map((st) => (
                   <span key={st} className="bg-[var(--primary)]/10 text-[var(--primary)] px-3 py-1 rounded-full">
                     {st}
                   </span>
@@ -186,7 +194,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               <div className="mb-8">
                 <h3 className="font-bold text-sm mb-3">الفوائد الرئيسية:</h3>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {product.benefits.map((b) => (
+                  {(product.benefits ?? []).map((b) => (
                     <li key={b} className="flex items-center gap-2 text-sm text-gray-600">
                       <Check size={14} className="text-green-500 flex-shrink-0" />
                       {b}
@@ -199,6 +207,8 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               <div className="flex items-center gap-4">
                 <div className="flex items-center border rounded-full">
                   <button
+                    aria-label="تقليل الكمية"
+                    disabled={quantity <= 1}
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full"
                   >
@@ -206,7 +216,9 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                   </button>
                   <span className="w-10 text-center font-medium">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
+                    aria-label="زيادة الكمية"
+                    disabled={quantity >= 99}
+                    onClick={() => setQuantity(Math.min(99, quantity + 1))}
                     className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full"
                   >
                     <Plus size={16} />
@@ -235,9 +247,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               </div>
 
               {/* Free shipping note */}
-              {product.price >= 49 && (
-                <p className="text-green-600 text-sm mt-4">✓ هذا المنتج مؤهل للشحن المجاني</p>
-              )}
+              <p className="text-gray-600 text-sm mt-4">تظهر عروض التوصيل المتاحة في صفحة إتمام الطلب.</p>
             </div>
           </div>
 
@@ -280,7 +290,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                 <div>
                   <p className="text-gray-600 leading-relaxed mb-4">{product.description}</p>
                   <ul className="space-y-2">
-                    {product.benefits.map((b) => (
+                    {(product.benefits ?? []).map((b) => (
                       <li key={b} className="flex items-center gap-2 text-gray-600">
                         <Check size={14} className="text-green-500" />
                         {b}
