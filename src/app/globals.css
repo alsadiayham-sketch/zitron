@@ -225,6 +225,27 @@ input::placeholder, textarea::placeholder {
   to { transform: translateX(0); }
 }
 
+@keyframes offersMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.offers-marquee-track {
+  animation: offersMarquee 32s linear infinite;
+  will-change: transform;
+}
+
+.offers-marquee-track:hover,
+.offers-marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offers-marquee-track {
+    animation: none;
+  }
+}
+
 .animate-fadeInUp {
   animation: fadeInUp 180ms ease-out;
 }
