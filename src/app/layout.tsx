@@ -12,9 +12,33 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "ZITRON | متجر العناية بالبشرة",
+  metadataBase: new URL("https://zitron.pages.dev"),
+  title: "Zitron",
+  applicationName: "Zitron",
   description:
-    "تسوّق منتجات العناية بالبشرة حسب الفئة ونوع البشرة. معلومات واضحة عن المنتجات، طلبات بالدفع عند الاستلام، ومتابعة سهلة لطلباتك.",
+    "متجر Zitron للعناية بالبشرة والمنتجات الجلدية.",
+  openGraph: {
+    title: "Zitron",
+    description: "متجر Zitron للعناية بالبشرة والمنتجات الجلدية.",
+    url: "https://zitron.pages.dev",
+    siteName: "Zitron",
+    locale: "ar_PS",
+    type: "website",
+    images: [
+      {
+        url: "/images/zitron-logo.png",
+        width: 1073,
+        height: 1070,
+        alt: "Zitron",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Zitron",
+    description: "متجر Zitron للعناية بالبشرة والمنتجات الجلدية.",
+    images: ["/images/zitron-logo.png"],
+  },
 };
 
 export default function RootLayout({
