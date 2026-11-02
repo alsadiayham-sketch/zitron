@@ -235,8 +235,7 @@ input::placeholder, textarea::placeholder {
   will-change: transform;
 }
 
-.offers-marquee-track:hover,
-.offers-marquee-track:focus-within {
+.offers-marquee-track:hover {
   animation-play-state: paused;
 }
 
