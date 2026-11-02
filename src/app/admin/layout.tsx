@@ -99,10 +99,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(27,58,107,0.18),_transparent_45%),linear-gradient(180deg,#f8f4f0_0%,#f4f7fb_100%)] px-4 py-10">
-      <div className="w-full max-w-md rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-2xl backdrop-blur">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--secondary)] px-4 py-10">
+      <div className="clinical-panel w-full max-w-md p-6 sm:p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--primary)] text-white shadow-lg">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--primary)] text-white">
             <ShieldCheck className="h-8 w-8" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900">بوابة إدارة ZITRON</h1>
@@ -111,15 +111,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</label>
-            <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل اسم المستخدم أو البريد" required autoComplete="username" aria-invalid={Boolean(error)} />
+            <label htmlFor="admin-username" className="mb-2 block text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</label>
+            <input id="admin-username" value={username} onChange={(event) => setUsername(event.target.value)} className="clinical-input" placeholder="أدخل اسم المستخدم أو البريد" required autoComplete="username" aria-invalid={Boolean(error)} />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور</label>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل كلمة المرور" required autoComplete="current-password" aria-invalid={Boolean(error)} />
+            <label htmlFor="admin-password" className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور</label>
+            <input id="admin-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="clinical-input" placeholder="أدخل كلمة المرور" required autoComplete="current-password" aria-invalid={Boolean(error)} />
           </div>
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{error}</div> : null}
-          <button type="submit" disabled={submitting} className="w-full rounded-2xl bg-[var(--primary)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}</button>
+          <button type="submit" disabled={submitting} className="clinical-button w-full">{submitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}</button>
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">الوصول مخصص لإدارة المتجر والعمال فقط.</p>
@@ -130,9 +130,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 function SidebarLink({ href, label, icon: Icon, active, badgeCount, depth = 0, onNavigate }: { href: string; label: string; icon?: LucideIcon; active: boolean; badgeCount?: number; depth?: number; onNavigate?: () => void; }) {
   return (
-    <Link href={href} onClick={onNavigate} className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-3 transition ${depth === 0 ? "text-sm font-medium" : "mr-4 text-xs font-semibold"} ${active ? "bg-white text-[var(--primary)] shadow-sm" : "text-slate-600 hover:bg-white/80 hover:text-[var(--primary)]"}`}>
+    <Link href={href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`flex min-h-11 items-center justify-between gap-3 rounded-xl px-4 py-2.5 transition ${depth === 0 ? "text-sm font-medium" : "mr-4 text-xs font-semibold"} ${active ? "bg-[var(--accent-light)] text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : "text-slate-700 hover:bg-white hover:text-[var(--primary)]"}`}>
       <span className="flex items-center gap-3">{Icon ? <Icon className="h-5 w-5" /> : <span className="h-2 w-2 rounded-full bg-current/40" />}<span>{label}</span></span>
-      {typeof badgeCount === "number" && badgeCount > 0 ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-500 px-2 text-xs font-bold text-white">{badgeCount}</span> : null}
+      {typeof badgeCount === "number" && badgeCount > 0 ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-700 px-2 text-xs font-bold text-white">{badgeCount}</span> : null}
     </Link>
   );
 }
@@ -223,14 +223,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f5f7fb_0%,#eef3f8_100%)] text-slate-900">
-      <div className="flex min-h-screen">
-        <aside className={`fixed inset-y-0 right-0 z-40 w-72 border-l border-white/70 bg-[#f8f4f0]/95 p-5 shadow-xl backdrop-blur transition-transform duration-300 lg:translate-x-0 ${mobileMenuOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
+    <div className="min-h-screen bg-[var(--surface-soft)] text-[var(--foreground)]">
+      <a href="#admin-main-content" className="sr-only z-50 rounded-lg bg-[var(--primary)] px-4 py-2 text-white focus:not-sr-only focus:fixed focus:right-4 focus:top-4">
+        الانتقال إلى المحتوى الرئيسي
+      </a>
+      <div className="flex min-h-screen min-w-0">
+        <aside className={`fixed inset-y-0 right-0 z-40 w-72 border-l border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-transform duration-200 lg:translate-x-0 lg:shadow-none ${mobileMenuOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
           <div className="flex h-full flex-col">
-            <div className="rounded-[2rem] bg-[var(--primary)] p-5 text-white shadow-lg">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70">{session.role === "worker" ? "Worker" : "Admin"}</p>
-              <h2 className="mt-3 text-2xl font-bold">ZITRON</h2>
-              <p className="mt-2 text-sm text-white/80">مرحباً {session.name} — {session.role === "worker" ? "يمكنك متابعة الطلبات والطباعة." : "إدارة المحتوى والطلبات والعملاء بسهولة."}</p>
+            <div className="rounded-xl bg-[var(--primary)] p-5 text-white">
+              <p className="text-xs font-semibold text-white/80">{session.role === "worker" ? "حساب عامل" : "حساب مدير"}</p>
+              <h2 className="mt-2 text-2xl font-bold">ZITRON</h2>
+              <p className="mt-2 text-sm leading-6 text-white/90">مرحباً {session.name} — {session.role === "worker" ? "متابعة الطلبات والطباعة." : "إدارة المتجر والطلبات."}</p>
             </div>
 
             <nav className="mt-6 flex-1 space-y-2">
@@ -247,26 +250,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               })}
             </nav>
 
-            <button type="button" onClick={() => void logout()} className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+            <button type="button" onClick={() => void logout()} className="mt-6 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-rose-700">
               <LogOut className="h-4 w-4" />تسجيل الخروج
             </button>
           </div>
         </aside>
 
-        <div className="flex min-h-screen flex-1 flex-col lg:pr-72">
-          <header className="sticky top-0 z-30 border-b border-white/70 bg-white/80 backdrop-blur">
-            <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">{session.role === "worker" ? "لوحة العامل" : "لوحة الإدارة"}</p>
-                <h1 className="mt-1 text-lg font-bold text-slate-900">{currentSection}</h1>
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pr-72">
+          <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-white/95 backdrop-blur">
+            <div className="flex min-w-0 items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[var(--muted)]">{session.role === "worker" ? "لوحة العامل" : "لوحة الإدارة"}</p>
+                <p className="mt-1 text-lg font-bold text-slate-900">{currentSection}</p>
               </div>
-              <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} className="rounded-2xl border border-slate-200 p-3 text-slate-700 transition hover:bg-slate-100 lg:hidden" aria-label="القائمة">
+              <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} className="rounded-xl border border-[var(--border)] p-3 text-slate-700 transition hover:bg-[var(--surface-soft)] lg:hidden" aria-label="القائمة" aria-expanded={mobileMenuOpen}>
                 <Menu className="h-5 w-5" />
               </button>
             </div>
           </header>
 
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main id="admin-main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 focus:outline-none">{children}</main>
         </div>
       </div>
 

@@ -247,7 +247,7 @@ export default function AdminProductsPage() {
         {products.length === 0 ? (
           <AdminEmptyState title="لا توجد منتجات حالياً" description="ابدأ بإضافة أول منتج ليظهر في المتجر فوراً." />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-right">
               <thead>
                 <tr className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -387,7 +387,7 @@ export default function AdminProductsPage() {
             </div>
 
             {form.images.length === 0 ? (
-              <div className="mt-4 flex min-h-32 items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+              <div className="mt-4 flex min-h-32 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
                 <div className="text-center">
                   <ImagePlus className="mx-auto h-8 w-8" />
                   <p className="mt-2 text-sm">لم يتم رفع أي صور بعد</p>
@@ -396,7 +396,7 @@ export default function AdminProductsPage() {
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {form.images.map((url, index) => (
-                  <div key={`${url}-${index}`} className="rounded-3xl border border-slate-200 p-3">
+                  <div key={`${url}-${index}`} className="rounded-xl border border-slate-200 p-3">
                     <div className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">
                       <Image src={url} alt={`صورة ${index + 1}`} fill className="object-cover" sizes="180px" />
                     </div>

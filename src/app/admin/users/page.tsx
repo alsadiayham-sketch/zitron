@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
         {users.length === 0 ? (
           <AdminEmptyState title="لا يوجد عملاء حتى الآن" description="سيظهر العملاء هنا عند التسجيل أو تنفيذ أول طلب." />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-right">
               <thead>
                 <tr className="text-xs font-semibold uppercase tracking-wide text-slate-500">

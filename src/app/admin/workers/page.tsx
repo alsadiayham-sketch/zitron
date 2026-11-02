@@ -137,12 +137,12 @@ export default function AdminWorkersPage() {
 
       {feedback ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{feedback}</div> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <AdminCard>
           <form onSubmit={saveWorker} className="space-y-4">
-            <div><FieldLabel>اسم العامل</FieldLabel><TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم الكامل" required /></div>
-            <div><FieldLabel>البريد الإلكتروني</FieldLabel><TextInput type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="worker@email.com" required /></div>
-            <div><FieldLabel>{editingWorkerId ? "كلمة مرور جديدة (مطلوبة لتفعيل الحساب المعلّق)" : "كلمة المرور"}</FieldLabel><TextInput type="password" value={form.newPassword} onChange={(event) => setForm({ ...form, newPassword: event.target.value })} placeholder={editingWorkerId ? "اتركها فارغة إن كان الحساب مفعّلاً" : "12 حرفاً على الأقل"} required={!editingWorkerId || Boolean(editingWorkerId && workers.find((worker) => worker.id === editingWorkerId)?.disabled)} minLength={editingWorkerId ? undefined : 12} autoComplete="new-password" /></div>
+            <div><FieldLabel htmlFor="worker-name">اسم العامل</FieldLabel><TextInput id="worker-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم الكامل" required /></div>
+            <div><FieldLabel htmlFor="worker-email">البريد الإلكتروني</FieldLabel><TextInput id="worker-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="worker@email.com" required /></div>
+            <div><FieldLabel htmlFor="worker-password">{editingWorkerId ? "كلمة مرور جديدة (مطلوبة لتفعيل الحساب المعلّق)" : "كلمة المرور"}</FieldLabel><TextInput id="worker-password" type="password" value={form.newPassword} onChange={(event) => setForm({ ...form, newPassword: event.target.value })} placeholder={editingWorkerId ? "اتركها فارغة إن كان الحساب مفعّلاً" : "12 حرفاً على الأقل"} required={!editingWorkerId || Boolean(editingWorkerId && workers.find((worker) => worker.id === editingWorkerId)?.disabled)} minLength={editingWorkerId ? undefined : 12} autoComplete="new-password" /></div>
             {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="submit" disabled={saving} className="w-full rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? (editingWorkerId ? "جاري الحفظ..." : "جاري الإضافة...") : (editingWorkerId ? "حفظ التعديلات" : "إضافة عامل")}</button>
@@ -155,7 +155,7 @@ export default function AdminWorkersPage() {
           {workers.length === 0 ? (
             <AdminEmptyState title="لا يوجد عمال حتى الآن" description="أضف أول عامل ليتمكن من الوصول إلى صفحات الطلبات فقط." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
               <table className="min-w-full divide-y divide-slate-200 text-right">
                 <thead>
                   <tr className="text-xs font-semibold uppercase tracking-wide text-slate-500">

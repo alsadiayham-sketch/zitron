@@ -1,256 +1,33 @@
 "use client";
 
+import { Clock, Mail, MapPin, Phone, Send } from "lucide-react";
 import { useEffect, useState } from "react";
-import { addDoc, onSnapshot } from "@/lib/store-data";
-import { Mail, Phone, MapPin, Send, Clock } from "lucide-react";
 import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
-import { getCollection, getDocRef } from "@/lib/store-data";
+import { addDoc, getCollection, getDocRef, onSnapshot } from "@/lib/store-data";
 
 export default function ContactPage() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState("");
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
+  const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
+  useEffect(() => onSnapshot(getDocRef("settings", "config"), (snapshot) => setSettings(snapshot.exists() ? { ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) } : DEFAULT_SETTINGS)), []);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(getDocRef("settings", "config"), (snapshot) => {
-      if (snapshot.exists()) {
-        setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
-      } else {
-        setSettings(DEFAULT_SETTINGS);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (sending) return;
-    if (!formData.name.trim() || !formData.message.trim() || !formData.subject) {
-      setResult("يرجى إدخال الاسم والموضوع والرسالة.");
-      return;
-    }
-    setSending(true);
-    setResult("");
+    if (!formData.name.trim() || !formData.message.trim() || !formData.subject) { setResult("يرجى إدخال الاسم والموضوع والرسالة."); return; }
+    setSending(true); setResult("");
     try {
       await addDoc(getCollection("messages"), { ...formData, name: formData.name.trim(), email: formData.email.trim(), message: formData.message.trim(), createdAt: new Date().toISOString(), status: "new" });
-      setResult("تم استلام رسالتك بنجاح.");
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
-      setResult(error instanceof Error ? error.message : "تعذر إرسال الرسالة. حاول مجدداً أو تواصل عبر الهاتف.");
-    } finally {
-      setSending(false);
-    }
-  };
+      setFormData({ name: "", email: "", subject: "", message: "" }); setResult("تم استلام رسالتك بنجاح.");
+    } catch (caught) { setResult(caught instanceof Error ? caught.message : "تعذر إرسال الرسالة. حاول مجدداً أو تواصل عبر الهاتف."); } finally { setSending(false); }
+  }
+  const update = (key: keyof typeof formData, value: string) => setFormData((current) => ({ ...current, [key]: value }));
 
-  return (
-    <>
-      {/* Hero */}
-      <section className="bg-gradient-to-bl from-[var(--primary)] to-[var(--primary-dark)] py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <h1 className="text-4xl font-bold mb-4">اتصل بنا</h1>
-          <p className="text-white/80 max-w-2xl mx-auto">
-            نسعد بتواصلكم معنا. فريقنا جاهز للإجابة على جميع استفساراتكم
-          </p>
-        </div>
-      </section>
-
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-12">
-            {/* Contact Info */}
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-bold text-[var(--primary)] mb-6">
-                  معلومات التواصل
-                </h2>
-                <p className="text-gray-600 mb-8">
-                  لا تتردد في التواصل معنا عبر أي من الوسائل التالية. فريق خدمة
-                  العملاء متاح لمساعدتك.
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <MapPin size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-[var(--primary)] mb-1">العنوان</h3>
-                    <p className="text-gray-600 text-sm whitespace-pre-line">{settings.contactAddress}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Phone size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-[var(--primary)] mb-1">الهاتف</h3>
-                    <p className="text-gray-600 text-sm" dir="ltr">{settings.contactPhone}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Mail size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-[var(--primary)] mb-1">البريد الإلكتروني</h3>
-                    <p className="text-gray-600 text-sm">{settings.contactEmail}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Clock size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-[var(--primary)] mb-1">ساعات العمل</h3>
-                    <p className="text-gray-600 text-sm whitespace-pre-line">{settings.contactWorkHours}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Form */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                <h2 className="text-2xl font-bold text-[var(--primary)] mb-6">
-                  أرسل لنا رسالة
-                </h2>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        الاسم الكامل *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl py-3 px-4 focus:outline-none focus:border-[var(--primary)] text-sm"
-                        placeholder="أدخل اسمك"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        البريد الإلكتروني *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl py-3 px-4 focus:outline-none focus:border-[var(--primary)] text-sm"
-                        placeholder="example@email.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      الموضوع *
-                    </label>
-                    <select
-                      required
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl py-3 px-4 focus:outline-none focus:border-[var(--primary)] text-sm"
-                    >
-                      <option value="">اختر الموضوع</option>
-                      <option value="product">استفسار عن منتج</option>
-                      <option value="order">استفسار عن طلب</option>
-                      <option value="complaint">شكوى</option>
-                      <option value="partnership">شراكة</option>
-                      <option value="other">أخرى</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      الرسالة *
-                    </label>
-                    <textarea
-                      required
-                      rows={6}
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl py-3 px-4 focus:outline-none focus:border-[var(--primary)] text-sm resize-none"
-                      placeholder="اكتب رسالتك هنا..."
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={sending}
-                    className="inline-flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-light)] text-white font-medium py-3 px-8 rounded-full transition-colors"
-                  >
-                    <Send size={16} />
-                    {sending ? "جاري الإرسال..." : "إرسال الرسالة"}
-                  </button>
-                  {result && <p role="status">{result}</p>}
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="bg-[var(--secondary)] py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-[var(--primary)] text-center mb-12">
-            الأسئلة الشائعة
-          </h2>
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <details
-                key={faq.q}
-                className="bg-white rounded-xl p-6 group cursor-pointer"
-              >
-                <summary className="font-bold text-[var(--primary)] list-none flex items-center justify-between">
-                  {faq.q}
-                  <span className="text-[var(--primary)] group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <p className="text-gray-600 text-sm mt-4 leading-relaxed">
-                  {faq.a}
-                </p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-    </>
-  );
+  return <><section className="border-b border-[var(--border)] bg-[var(--surface-soft)] py-8 sm:py-10"><div className="clinical-container"><p className="clinical-muted text-sm">تواصل معنا</p><h1 className="clinical-page-heading mt-2">كيف يمكننا مساعدتك؟</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">أرسل استفساراً عن منتج أو طلب، وسيتلقى فريق المتجر رسالتك.</p></div></section>
+    <section className="py-7 sm:py-10"><div className="clinical-container grid gap-7 lg:grid-cols-[0.8fr_1.2fr]"><aside><h2 className="text-xl font-bold text-[var(--foreground)]">معلومات التواصل</h2><dl className="mt-5 space-y-4">{[[MapPin, "العنوان", settings.contactAddress], [Phone, "الهاتف", settings.contactPhone], [Mail, "البريد الإلكتروني", settings.contactEmail], [Clock, "ساعات العمل", settings.contactWorkHours]].map(([Icon, label, value]) => { const ContactIcon = Icon as typeof MapPin; return <div key={label as string} className="flex gap-3"><ContactIcon className="mt-1 h-5 w-5 shrink-0 text-[var(--accent)]" /><div><dt className="font-semibold text-[var(--foreground)]">{label as string}</dt><dd className="mt-1 whitespace-pre-line text-sm leading-6 text-[var(--muted)]" dir={label === "الهاتف" ? "ltr" : undefined}>{value as string}</dd></div></div>; })}</dl></aside>
+      <div className="clinical-panel"><h2 className="text-xl font-bold text-[var(--foreground)]">أرسل رسالة</h2><form onSubmit={handleSubmit} className="mt-6 space-y-5"><div className="grid gap-5 sm:grid-cols-2"><Field label="الاسم الكامل *"><input required value={formData.name} onChange={(event) => update("name", event.target.value)} className="clinical-input w-full" placeholder="أدخل اسمك" /></Field><Field label="البريد الإلكتروني *"><input required type="email" value={formData.email} onChange={(event) => update("email", event.target.value)} className="clinical-input w-full" placeholder="example@email.com" dir="ltr" /></Field></div><Field label="الموضوع *"><select required value={formData.subject} onChange={(event) => update("subject", event.target.value)} className="clinical-input w-full"><option value="">اختر الموضوع</option><option value="product">استفسار عن منتج</option><option value="order">استفسار عن طلب</option><option value="complaint">شكوى</option><option value="partnership">شراكة</option><option value="other">أخرى</option></select></Field><Field label="الرسالة *"><textarea required rows={6} value={formData.message} onChange={(event) => update("message", event.target.value)} className="clinical-input w-full resize-y" placeholder="اكتب رسالتك هنا..." /></Field><button disabled={sending} className="clinical-button inline-flex min-h-11 items-center gap-2 px-5 disabled:cursor-not-allowed disabled:opacity-60"><Send className="h-4 w-4" />{sending ? "جاري الإرسال..." : "إرسال الرسالة"}</button>{result ? <p role="status" className="text-sm text-[var(--muted)]">{result}</p> : null}</form></div></div></section>
+    <section className="border-t border-[var(--border)] bg-[var(--surface-soft)] py-8 sm:py-10"><div className="clinical-container max-w-4xl"><h2 className="text-2xl font-bold text-[var(--foreground)]">أسئلة شائعة</h2><div className="mt-5 space-y-3">{faqs.map((faq) => <details key={faq.question} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4"><summary className="cursor-pointer font-semibold text-[var(--foreground)]">{faq.question}</summary><p className="mt-3 text-sm leading-7 text-[var(--muted)]">{faq.answer}</p></details>)}</div></div></section></>;
 }
-
-const faqs = [
-  {
-    q: "ما هي مدة الشحن؟",
-    a: "يتم شحن الطلبات خلال 24-48 ساعة عمل. التوصيل داخل المملكة العربية السعودية يستغرق 2-5 أيام عمل.",
-  },
-  {
-    q: "هل يمكنني إرجاع المنتجات؟",
-    a: "نعم، يمكنك إرجاع المنتجات غير المستخدمة خلال 14 يوماً من تاريخ الاستلام. يجب أن تكون المنتجات في عبواتها الأصلية.",
-  },
-  {
-    q: "هل منتجاتكم مناسبة للبشرة الحساسة؟",
-    a: "نعم، جميع منتجاتنا مختبرة تحت إشراف أطباء الجلدية ومصممة خصيصاً لتناسب جميع أنواع البشرة بما في ذلك البشرة الحساسة.",
-  },
-  {
-    q: "هل تقدمون عينات مجانية؟",
-    a: "نعم، مع كل طلب بقيمة 39 شيكل أو أكثر، يمكنك اختيار عينتين مجانيتين من مجموعة مختارة من منتجاتنا.",
-  },
-  {
-    q: "كيف يمكنني تتبع طلبي؟",
-    a: "بعد شحن طلبك، ستتلقى بريداً إلكترونياً يحتوي على رقم التتبع ورابط لتتبع شحنتك.",
-  },
-];
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-2 block text-sm font-semibold text-[var(--foreground)]">{label}</span>{children}</label>; }
+const faqs = [{ question: "كيف أتابع طلبي؟", answer: "استخدم صفحة متابعة الطلب وأدخل رقم الطلب والبيانات المطلوبة." }, { question: "هل يمكنني الاستفسار عن منتج؟", answer: "نعم، اختر «استفسار عن منتج» في النموذج وأضف اسم المنتج في رسالتك." }, { question: "كيف أغيّر عنواني؟", answer: "يمكن للعملاء المسجلين إدارة العناوين من صفحة الحساب." }];

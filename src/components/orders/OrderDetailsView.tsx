@@ -17,7 +17,7 @@ export default function OrderDetailsView({
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-slate-500">رقم الطلب</p>
           <h3 className="mt-1 text-2xl font-bold text-slate-900">{getOrderDisplayId(order)}</h3>
@@ -25,27 +25,27 @@ export default function OrderDetailsView({
         {showStatus ? <StatusBadge status={order.status} /> : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-4">
+      <dl className="grid overflow-hidden rounded-xl border border-[var(--border)] bg-white sm:grid-cols-2 xl:grid-cols-4">
+        <div className="border-b border-[var(--border)] p-4 sm:border-l xl:border-b-0">
           <p className="text-sm text-slate-500">التاريخ</p>
           <p className="mt-2 font-bold text-slate-900">{formatDate(order.date)}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-4">
+        <div className="border-b border-[var(--border)] p-4 xl:border-b-0 xl:border-l">
           <p className="text-sm text-slate-500">الإجمالي</p>
           <p className="mt-2 font-bold text-[var(--primary)]">{formatCurrency(order.total)}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-4">
+        <div className="border-b border-[var(--border)] p-4 sm:border-l sm:border-b-0">
           <p className="text-sm text-slate-500">المدينة</p>
           <p className="mt-2 font-bold text-slate-900">{order.city || "—"}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-4">
+        <div className="p-4">
           <p className="text-sm text-slate-500">عدد المنتجات</p>
           <p className="mt-2 font-bold text-slate-900">{items.length}</p>
         </div>
-      </div>
+        </dl>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-5">
           <div className="mb-4 flex items-center gap-2 text-slate-900">
             <UserRound className="h-5 w-5 text-[var(--primary)]" />
             <h4 className="font-bold">بيانات العميل</h4>
@@ -72,7 +72,7 @@ export default function OrderDetailsView({
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-5">
           <div className="mb-4 flex items-center gap-2 text-slate-900">
             <NotebookPen className="h-5 w-5 text-[var(--primary)]" />
             <h4 className="font-bold">ملاحظات الطلب</h4>
@@ -83,7 +83,7 @@ export default function OrderDetailsView({
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-5">
+      <div className="rounded-xl border border-[var(--border)] bg-white p-5">
         <div className="mb-4 flex items-center gap-2 text-slate-900">
           <ReceiptText className="h-5 w-5 text-[var(--primary)]" />
           <h4 className="font-bold">تفاصيل المنتجات</h4>
@@ -94,7 +94,7 @@ export default function OrderDetailsView({
           ) : items.map((item, index) => (
             <div
               key={`${item.id}-${index}`}
-              className="flex flex-col gap-4 rounded-3xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-4 border-b border-[var(--border)] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex items-center gap-4">
                 <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">

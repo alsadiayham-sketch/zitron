@@ -87,7 +87,7 @@ function ProductPicker({
 
   if (products.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
         لا توجد منتجات متاحة حالياً للاختيار.
       </div>
     );
@@ -137,7 +137,7 @@ function ProductPicker({
                 key={product.id}
                 type="button"
                 onClick={() => onToggle(product.id)}
-                className={`flex items-center gap-3 rounded-3xl border p-3 text-right transition ${checked ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-2 ring-[var(--primary)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-right transition ${checked ? "border-[var(--accent)] bg-[var(--accent-light)] ring-2 ring-[var(--accent)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}
               >
                 <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100">
                   {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover" sizes="56px" /> : null}
@@ -179,7 +179,7 @@ function SectionPicker({
             key={category.id}
             type="button"
             onClick={() => onToggle(category.id)}
-            className={`flex items-center justify-between rounded-3xl border px-4 py-3 text-right transition ${selected ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-2 ring-[var(--primary)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}
+            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-right transition ${selected ? "border-[var(--accent)] bg-[var(--accent-light)] ring-2 ring-[var(--accent)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}
           >
             <span className="text-sm font-semibold text-slate-900">{category.label}</span>
             {selected ? <CheckSquare className="h-4 w-4 text-[var(--primary)]" /> : <Square className="h-4 w-4 text-slate-400" />}
@@ -536,7 +536,7 @@ export default function AdminOffersPage() {
               const sectionLabel = getOfferSectionLabel(offer);
 
               return (
-                <div key={offer.id} className="rounded-[2rem] border border-slate-200 bg-slate-50/70 p-5 shadow-sm">
+                <div key={offer.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -545,7 +545,7 @@ export default function AdminOffersPage() {
                       </div>
                       <h3 className="mt-3 text-lg font-bold text-slate-900">{offer.title}</h3>
                       <p className="mt-2 text-sm leading-6 text-slate-500">{describeOffer(offer)}</p>
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-400">
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
                         <span>من: {formatDateLabel(offer.startDate)}</span>
                         <span>إلى: {formatDateLabel(offer.endDate)}</span>
                       </div>
@@ -639,7 +639,7 @@ export default function AdminOffersPage() {
             </div>
 
             {form.type !== "combo" ? (
-              <div className="md:col-span-2 space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
+              <div className="md:col-span-2 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-bold text-slate-900">استهداف أقسام محددة (اختياري)</h3>
@@ -651,7 +651,7 @@ export default function AdminOffersPage() {
                 <SectionPicker selectedIds={selectedSections} onToggle={toggleSection} />
 
                 {sectionBasedTrigger ? (
-                  <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4">
+                  <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-wrap gap-3">
                       <button type="button" onClick={() => setTriggerMode("amount")} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${!usesQuantityTrigger ? "bg-[var(--primary)] text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-[var(--primary)]/40"}`}>الحد الأدنى بالقيمة</button>
                       <button type="button" onClick={() => setTriggerMode("quantity")} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${usesQuantityTrigger ? "bg-[var(--primary)] text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-[var(--primary)]/40"}`}>الحد الأدنى بالكمية</button>
@@ -702,7 +702,7 @@ export default function AdminOffersPage() {
           </div>
 
           {(form.type === "free_product" || form.type === "combo") ? (
-            <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">اختيار المنتجات المؤهلة</h3>

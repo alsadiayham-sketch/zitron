@@ -54,13 +54,16 @@ export default function AdminOrderSearchPage() {
       />
 
       <AdminCard>
-        <form onSubmit={handleSearch} className="flex flex-col gap-4 sm:flex-row">
-          <TextInput
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value.toUpperCase())}
-            placeholder="مثال: ZT-AB12CD"
-            className="flex-1"
-          />
+        <form onSubmit={handleSearch} className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="admin-order-number-search" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">رقم الطلب</label>
+            <TextInput
+              id="admin-order-number-search"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value.toUpperCase())}
+              placeholder="مثال: ZT-AB12CD"
+            />
+          </div>
           <button
             type="submit"
             disabled={loading}

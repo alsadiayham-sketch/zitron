@@ -5,7 +5,7 @@ import { getDocs, limit, orderBy, query, startAfter, type DocumentData, type Que
 import { Printer } from "lucide-react";
 import { getCollection } from "@/lib/store-data";
 import { formatCurrency, formatDate, readAdminSession, type AdminOrder, type OrderStatus } from "@/lib/admin";
-import { AdminCard, AdminEmptyState, AdminModal, AdminPageHeader, LoadingState, SelectInput, StatusBadge, TextInput } from "@/components/admin/AdminUI";
+import { AdminCard, AdminEmptyState, AdminModal, AdminPageHeader, FieldLabel, LoadingState, SelectInput, StatusBadge, TextInput } from "@/components/admin/AdminUI";
 import OrderDetailsView from "@/components/orders/OrderDetailsView";
 import { getOrderDisplayId, normalizeOrder, printOrders } from "@/lib/order-utils";
 
@@ -249,18 +249,18 @@ export default function AdminAllOrdersPage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">المدينة</p>
-            <TextInput value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="ابحث باسم المدينة" />
+            <FieldLabel htmlFor="orders-city-filter">المدينة</FieldLabel>
+            <TextInput id="orders-city-filter" value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="ابحث باسم المدينة" />
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">اسم العميل أو الهاتف</p>
-            <TextInput value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="مثال: محمد أو 059..." />
+            <FieldLabel htmlFor="orders-customer-filter">اسم العميل أو الهاتف</FieldLabel>
+            <TextInput id="orders-customer-filter" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="مثال: محمد أو 059..." />
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">نوع التاريخ</p>
-            <SelectInput value={dateFilterMode} onChange={(event) => setDateFilterMode(event.target.value as DateFilterMode)}>
+            <FieldLabel htmlFor="orders-date-filter-mode">نوع التاريخ</FieldLabel>
+            <SelectInput id="orders-date-filter-mode" value={dateFilterMode} onChange={(event) => setDateFilterMode(event.target.value as DateFilterMode)}>
               <option value="all">بدون فلترة</option>
               <option value="after">بعد تاريخ</option>
               <option value="before">قبل تاريخ</option>
@@ -273,15 +273,15 @@ export default function AdminAllOrdersPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {(dateFilterMode === "after" || dateFilterMode === "between") ? (
               <div>
-                <p className="mb-2 text-sm font-semibold text-slate-700">من تاريخ</p>
-                <TextInput type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+                <FieldLabel htmlFor="orders-from-date">من تاريخ</FieldLabel>
+                <TextInput id="orders-from-date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
               </div>
             ) : null}
 
             {(dateFilterMode === "before" || dateFilterMode === "between") ? (
               <div>
-                <p className="mb-2 text-sm font-semibold text-slate-700">إلى تاريخ</p>
-                <TextInput type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+                <FieldLabel htmlFor="orders-to-date">إلى تاريخ</FieldLabel>
+                <TextInput id="orders-to-date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
               </div>
             ) : null}
           </div>
@@ -301,7 +301,7 @@ export default function AdminAllOrdersPage() {
             <AdminEmptyState title="لا توجد طلبات مطابقة" description="جرّب تغيير الفلاتر أو استمر في التمرير لتحميل دفعات إضافية من الطلبات." />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-right">
               <thead>
                 <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">

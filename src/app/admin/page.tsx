@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
             title: "إجمالي الطلبات",
             value: realOrders.length.toString(),
             icon: ShoppingCart,
-            accent: "bg-amber-100 text-amber-700",
+            accent: "bg-blue-50 text-blue-700",
           },
           {
             title: "الإيرادات",
@@ -113,7 +113,7 @@ export default function AdminDashboardPage() {
             title: "إجمالي العملاء",
             value: users.length.toString(),
             icon: UsersRound,
-            accent: "bg-violet-100 text-violet-700",
+            accent: "bg-teal-50 text-teal-700",
           },
         ].map((stat) => (
           <AdminCard key={stat.title} className="overflow-hidden">
@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[1.5fr,1fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <AdminCard>
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>

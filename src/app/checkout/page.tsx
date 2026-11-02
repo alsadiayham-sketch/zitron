@@ -441,23 +441,23 @@ export default function CheckoutPage() {
 
   if (successOrderId) {
     return (
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8" dir="rtl">
-        <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
+      <section className="clinical-container py-12 sm:py-16" dir="rtl">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center sm:p-8">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <h1 className="mt-6 text-3xl font-bold text-emerald-800">تم استلام طلبك بنجاح</h1>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-lg text-emerald-700">
             <span>رقم الطلب الخاص بك هو {successOrderId}</span>
-            <button type="button" onClick={() => void copyOrderId()} className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white px-3 py-1 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
+            <button type="button" onClick={() => void copyOrderId()} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
               <Copy className="h-4 w-4" />
               {copied ? "تم النسخ!" : "نسخ"}
             </button>
           </div>
           <p className="mt-2 text-sm text-emerald-700/90">احتفظ برقم الطلب لاستخدامه في صفحة التتبع.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href={`/account/orders?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700">عرض طلباتي</Link>
-            <Link href={`/track?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="rounded-full border border-emerald-300 bg-white px-6 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100">تتبع الطلب</Link>
+            <Link href={`/account/orders?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="clinical-button">عرض طلباتي</Link>
+            <Link href={`/track?orderId=${encodeURIComponent(successOrderId)}${successTrackingToken ? `&token=${encodeURIComponent(successTrackingToken)}` : ""}`} className="clinical-button-secondary">تتبع الطلب</Link>
           </div>
         </div>
       </section>
@@ -466,26 +466,26 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8" dir="rtl">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <section className="clinical-container py-12 sm:py-16" dir="rtl">
+        <div className="clinical-panel mx-auto max-w-3xl p-8 text-center">
           <ShoppingBag className="mx-auto h-14 w-14 text-slate-300" />
           <h1 className="mt-5 text-3xl font-bold text-slate-900">سلة التسوق فارغة</h1>
           <p className="mt-3 text-slate-500">أضف منتجاتك المفضلة أولاً ثم عُد لإتمام الطلب.</p>
-          <Link href="/products" className="mt-8 inline-flex rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)]">تصفح المنتجات</Link>
+          <Link href="/products" className="clinical-button mt-8 inline-flex">تصفح المنتجات</Link>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8" dir="rtl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">إتمام الطلب</h1>
-        <p className="mt-2 text-slate-500">أكمل بياناتك وسنقوم بتجهيز طلبك في أسرع وقت ممكن.</p>
+    <section className="clinical-container py-8 sm:py-10" dir="rtl">
+      <div className="mb-7 border-b border-[var(--border)] pb-6">
+        <h1 className="clinical-page-heading">إتمام الطلب</h1>
+        <p className="clinical-muted mt-2">راجع المنتجات، أدخل بيانات التوصيل، ثم أكّد طلب الدفع عند الاستلام.</p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[0.8fr,1.2fr]">
-        <form onSubmit={handleSubmit} className="order-2 space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
+        <form onSubmit={handleSubmit} className="order-1 min-w-0 space-y-6">
           {productsError || offersError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
               {productsError || offersError}
@@ -533,7 +533,7 @@ export default function CheckoutPage() {
           ) : null}
 
           {qualifyingFreeShippingOffers.length > 0 ? (
-            <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
               <div className="flex items-center gap-3">
                 <Truck className="h-5 w-5" />
                 <div>
@@ -549,7 +549,7 @@ export default function CheckoutPage() {
             const selectedProductId = selectedFreeProducts[offer.id];
 
             return (
-              <div key={offer.id} className="space-y-4 rounded-[2rem] border border-amber-200 bg-amber-50/80 p-5">
+              <div key={offer.id} className="space-y-4 rounded-xl border border-teal-200 bg-teal-50 p-5">
                 <div className="flex items-start gap-3">
                   <Gift className="mt-1 h-5 w-5 text-amber-600" />
                   <div>
@@ -567,7 +567,7 @@ export default function CheckoutPage() {
                         key={product.id}
                         type="button"
                         onClick={() => selectFreeProduct(offer.id, product.id)}
-                        className={`overflow-hidden rounded-[1.5rem] border bg-white text-right transition ${isSelected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-slate-200 hover:border-[var(--primary)]/40"}`}
+                        className={`overflow-hidden rounded-xl border bg-white text-right transition ${isSelected ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/20" : "border-slate-200 hover:border-[var(--primary)]/40"}`}
                       >
                         <div className="relative aspect-square bg-slate-100">
                           {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 20vw" /> : null}
@@ -588,15 +588,44 @@ export default function CheckoutPage() {
             );
           })}
 
+          <section className="clinical-panel p-5 sm:p-6" aria-labelledby="checkout-customer-heading">
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary)] text-sm font-bold text-[var(--primary)]">1</span>
+              <div>
+                <h2 id="checkout-customer-heading" className="text-lg font-bold text-[var(--foreground)]">بيانات العميل</h2>
+                <p className="clinical-muted mt-1 text-sm">بيانات التواصل لتأكيد الطلب والتوصيل.</p>
+              </div>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><UserRound className="h-4 w-4 text-[var(--primary)]" />الاسم الكامل</span>
+                <input id="checkout-customer-name" required value={formData.customerName} onChange={(event) => updateField("customerName", event.target.value)} className="clinical-input" placeholder="أدخل الاسم الكامل" autoComplete="name" />
+              </label>
+              <label className="block space-y-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Phone className="h-4 w-4 text-[var(--primary)]" />رقم الهاتف</span>
+                <input id="checkout-customer-phone" required type="tel" value={formData.customerPhone} onChange={(event) => updateField("customerPhone", event.target.value)} className="clinical-input" placeholder="0590000000" autoComplete="tel" />
+              </label>
+            </div>
+          </section>
+
+          <section className="clinical-panel p-5 sm:p-6" aria-labelledby="checkout-delivery-heading">
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary)] text-sm font-bold text-[var(--primary)]">2</span>
+              <div>
+                <h2 id="checkout-delivery-heading" className="text-lg font-bold text-[var(--foreground)]">عنوان التوصيل</h2>
+                <p className="clinical-muted mt-1 text-sm">اختر عنواناً محفوظاً أو أدخل عنواناً جديداً واضحاً.</p>
+              </div>
+            </div>
+
           {user && hasSavedLocations ? (
-            <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-5 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-bold text-slate-900">العناوين المحفوظة</h2>
                 <button type="button" onClick={useNewAddress} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-[var(--primary)] hover:text-[var(--primary)]">إضافة عنوان جديد</button>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 {savedLocations.map((location) => (
-                  <button key={location.id} type="button" onClick={() => applyLocation(location)} className={`rounded-3xl border p-4 text-right transition ${selectedLocationId === location.id ? "border-[var(--primary)] bg-white ring-2 ring-[var(--primary)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}>
+                  <button key={location.id} type="button" onClick={() => applyLocation(location)} className={`rounded-xl border p-4 text-right transition ${selectedLocationId === location.id ? "border-[var(--accent)] bg-white ring-2 ring-[var(--accent)]/10" : "border-slate-200 bg-white hover:border-[var(--primary)]/40"}`}>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-bold text-slate-900">{location.label}</h3>
                       {location.isDefault ? <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">الافتراضي</span> : null}
@@ -610,34 +639,19 @@ export default function CheckoutPage() {
           ) : null}
 
           <div className="grid gap-5 md:grid-cols-2">
-            <label className="block space-y-2 md:col-span-2">
-              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><UserRound className="h-4 w-4 text-[var(--primary)]" />الاسم الكامل</span>
-              <input required value={formData.customerName} onChange={(event) => updateField("customerName", event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أدخل الاسم الكامل" />
-            </label>
-
-            <label className="block space-y-2">
-              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Phone className="h-4 w-4 text-[var(--primary)]" />رقم الهاتف</span>
-              <input required type="tel" value={formData.customerPhone} onChange={(event) => updateField("customerPhone", event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="0590000000" />
-            </label>
-
             <label className="block space-y-2">
               <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><MapPinned className="h-4 w-4 text-[var(--primary)]" />المدينة</span>
-              <input value={formData.city} onChange={(event) => updateField("city", event.target.value)} disabled={selectedLocationId !== "new"} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="مثال: القدس" />
+              <input id="checkout-city" value={formData.city} onChange={(event) => updateField("city", event.target.value)} disabled={selectedLocationId !== "new"} className="clinical-input disabled:bg-slate-100 disabled:text-slate-500" placeholder="مثال: القدس" autoComplete="address-level2" />
             </label>
 
             <label className="block space-y-2 md:col-span-2">
               <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><MapPinned className="h-4 w-4 text-[var(--primary)]" />العنوان</span>
-              <textarea required value={formData.customerAddress} onChange={(event) => updateField("customerAddress", event.target.value)} disabled={selectedLocationId !== "new"} className="min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-slate-100 disabled:text-slate-500" placeholder="المدينة، الحي، اسم الشارع، وأي تفاصيل إضافية" />
-            </label>
-
-            <label className="block space-y-2 md:col-span-2">
-              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><NotebookPen className="h-4 w-4 text-[var(--primary)]" />ملاحظات (اختياري)</span>
-              <textarea value={formData.notes} onChange={(event) => updateField("notes", event.target.value)} className="min-h-24 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="أضف أي تفاصيل تساعدنا في تجهيز الطلب" />
+              <textarea id="checkout-address" required value={formData.customerAddress} onChange={(event) => updateField("customerAddress", event.target.value)} disabled={selectedLocationId !== "new"} className="clinical-input min-h-28 disabled:bg-slate-100 disabled:text-slate-500" placeholder="الحي، اسم الشارع، رقم المبنى، وأقرب علامة واضحة" autoComplete="street-address" />
             </label>
           </div>
 
           {user && selectedLocationId === "new" ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
               <p className="font-semibold text-slate-900">هل تريد حفظ هذا العنوان للاستخدام لاحقاً؟</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 <button type="button" onClick={() => setSaveNewAddressPreference("yes")} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${saveNewAddressPreference === "yes" ? "bg-[var(--primary)] text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}>نعم</button>
@@ -645,13 +659,40 @@ export default function CheckoutPage() {
               </div>
             </div>
           ) : null}
+          </section>
+
+          <section className="clinical-panel p-5 sm:p-6" aria-labelledby="checkout-payment-heading">
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">3</span>
+              <div>
+                <h2 id="checkout-payment-heading" className="text-lg font-bold text-[var(--foreground)]">الدفع والتأكيد</h2>
+                <p className="clinical-muted mt-1 text-sm">الدفع عند الاستلام. لن يُرسل الطلب مرتين أثناء المعالجة.</p>
+              </div>
+            </div>
+            <label className="block space-y-2">
+              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700"><NotebookPen className="h-4 w-4 text-[var(--primary)]" />ملاحظات (اختياري)</span>
+              <textarea id="checkout-notes" value={formData.notes} onChange={(event) => updateField("notes", event.target.value)} className="clinical-input min-h-24" placeholder="أضف أي تفاصيل تساعدنا في تجهيز الطلب" />
+            </label>
 
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
-          <button type="submit" disabled={submitting || offersLoading || productsLoading || Boolean(productsError) || Boolean(offersError) || catalogIssues.length > 0} className="w-full rounded-full bg-[var(--primary)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري إرسال الطلب..." : offersLoading || productsLoading ? "جاري التحقق من العروض..." : "تأكيد الطلب"}</button>
+          <div className="mt-5 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-light)] p-4 text-[var(--accent)] lg:hidden">
+            <div className="flex items-center justify-between gap-3 font-bold">
+              <span>{qualifyingFreeShippingOffers.length > 0 ? "المبلغ المستحق" : "قيمة الطلب قبل التوصيل"}</span>
+              <span>{formatCurrency(totalPrice)}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium">
+              {qualifyingFreeShippingOffers.length > 0
+                ? "يشمل المبلغ توصيلاً مجانياً."
+                : "سعر التوصيل غير مشمول ويُحدّد وفق قواعد التوصيل."}
+            </p>
+          </div>
+
+          <button type="submit" disabled={submitting || offersLoading || productsLoading || Boolean(productsError) || Boolean(offersError) || catalogIssues.length > 0} className="mt-5 w-full rounded-xl bg-[var(--accent)] px-6 py-3.5 font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "جاري إرسال الطلب..." : offersLoading || productsLoading ? "جاري التحقق من العروض..." : "تأكيد الطلب والدفع عند الاستلام"}</button>
+          </section>
         </form>
 
-        <aside className="order-1 space-y-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <aside className="clinical-panel order-2 min-w-0 space-y-5 p-5 lg:sticky lg:top-24">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-xl font-bold text-slate-900">ملخص السلة</h2>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">{orderItemCount} قطعة</span>
@@ -659,7 +700,7 @@ export default function CheckoutPage() {
 
           <div className="space-y-4">
             {regularItems.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-start gap-3">
                   <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-white border border-slate-100">
                     <Image src={item.image} alt={item.name} fill className="object-contain p-1" sizes="64px" />
@@ -678,7 +719,7 @@ export default function CheckoutPage() {
               const comboOffer = activeComboOfferMap.get(group.offerId);
               const isInvalid = !offersLoading && !productsLoading && invalidComboGroups.some((item) => item.offerId === group.offerId);
               return (
-                <div key={group.offerId} className={`space-y-3 rounded-3xl border p-4 ${isInvalid ? "border-rose-200 bg-rose-50" : "border-sky-200 bg-sky-50"}`}>
+                <div key={group.offerId} className={`space-y-3 rounded-xl border p-4 ${isInvalid ? "border-rose-200 bg-rose-50" : "border-sky-200 bg-sky-50"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div className={`flex items-center gap-2 ${isInvalid ? "text-rose-800" : "text-sky-800"}`}>
                       <Sparkles className="h-4 w-4" />
@@ -730,7 +771,7 @@ export default function CheckoutPage() {
             })}
 
             {freeProductOrderItems.length > 0 ? (
-              <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <div className="flex items-center gap-2 text-emerald-800">
                   <Gift className="h-4 w-4" />
                   <p className="font-bold">الهدايا المجانية</p>
@@ -748,16 +789,16 @@ export default function CheckoutPage() {
             ) : null}
           </div>
 
-          <div className="rounded-3xl bg-amber-50 p-4 text-amber-800">
-            <div className="flex items-center justify-between gap-3 text-sm font-medium text-amber-700">
+          <div className="rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-light)] p-4 text-[var(--accent)]">
+            <div className="flex items-center justify-between gap-3 text-sm font-medium">
               <span>إجمالي المنتجات</span>
               <span>{formatCurrency(totalPrice)}</span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 text-lg font-bold">
-              <span>الإجمالي النهائي</span>
+              <span>{qualifyingFreeShippingOffers.length > 0 ? "المبلغ المستحق" : "قيمة الطلب قبل التوصيل"}</span>
               <span>{formatCurrency(totalPrice)}</span>
             </div>
-            <p className="mt-2 text-sm font-medium text-amber-700">
+            <p className="mt-2 text-sm font-medium">
               {qualifyingFreeShippingOffers.length > 0
                 ? "يشمل الإجمالي توصيلاً مجانياً."
                 : "سعر التوصيل غير مشمول في الإجمالي."}

@@ -1,17 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1a1a2e;
-  --primary: #1b3a6b;
-  --primary-light: #2d5aa0;
-  --primary-dark: #0f2347;
-  --accent: #d4a574;
-  --accent-light: #f5e6d3;
-  --secondary: #f8f4f0;
-  --gold: #c9a96e;
-  --success: #28a745;
-  --star: #ffc300;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.29 0.043 242);
+  --primary: oklch(0.36 0.069 245);
+  --primary-light: oklch(0.44 0.077 240);
+  --primary-dark: oklch(0.27 0.054 245);
+  --accent: oklch(0.45 0.078 190);
+  --accent-light: oklch(0.95 0.021 190);
+  --secondary: oklch(0.976 0.006 230);
+  --surface: var(--background);
+  --surface-soft: oklch(0.962 0.01 230);
+  --muted: oklch(0.46 0.03 240);
+  --border: oklch(0.885 0.015 230);
+  --input-border: oklch(0.65 0.022 230);
+  --gold: var(--accent);
+  --success: oklch(0.43 0.105 155);
+  --error: oklch(0.47 0.17 25);
+  --star: oklch(0.53 0.1 81);
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
 }
 
 @theme inline {
@@ -23,6 +37,10 @@
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
   --color-secondary: var(--secondary);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
   --color-gold: var(--gold);
   --color-star: var(--star);
   --font-sans: var(--font-cairo);
@@ -33,11 +51,212 @@ body {
   color: var(--foreground);
   font-family: var(--font-cairo), Arial, sans-serif;
   direction: rtl;
+  line-height: 1.7;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  scroll-padding-block-start: 9rem;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled), select:not(:disabled), summary {
+  cursor: pointer;
+}
+
+input, select, textarea {
+  min-width: 0;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@layer components {
+  .clinical-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  .clinical-button,
+  .clinical-button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: white;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    transition: background-color 180ms ease-out, border-color 180ms ease-out;
+  }
+
+  .clinical-button:hover:not(:disabled) {
+    background: var(--primary);
+  }
+
+  .clinical-button-secondary {
+    border-color: var(--input-border);
+    background: var(--surface);
+    color: var(--primary);
+  }
+
+  .clinical-button-secondary:hover:not(:disabled) {
+    background: var(--surface-soft);
+    border-color: var(--primary);
+  }
+
+  .clinical-button:disabled,
+  .clinical-button-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .clinical-input {
+    width: 100%;
+    min-height: 2.875rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    color: var(--foreground);
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: border-color 180ms ease-out;
+  }
+
+  .clinical-input:focus {
+    border-color: var(--accent);
+  }
+
+  .clinical-input:disabled {
+    background: var(--surface-soft);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .clinical-input[aria-invalid="true"] {
+    border-color: var(--error);
+  }
+
+  .clinical-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    padding: 1.25rem;
+  }
+
+  .clinical-page-heading {
+    color: var(--primary);
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .clinical-muted {
+    color: var(--muted);
+  }
+
+  .skip-link {
+    position: fixed;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 1rem;
+    z-index: var(--z-tooltip);
+    padding: 0.625rem 1rem;
+    border-radius: var(--radius-control);
+    background: var(--primary);
+    color: white;
+    transform: translateY(-160%);
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  @media (min-width: 640px) {
+    .clinical-container {
+      padding-inline: 1.5rem;
+    }
+
+    .clinical-page-heading {
+      font-size: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .clinical-container {
+      padding-inline: 2rem;
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateY(6px); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(12px); }
+  to { transform: translateX(0); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 180ms ease-out;
+}
+
+.animate-fadeIn {
+  transition: opacity 180ms ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 200ms ease-out;
+}
+
+.swiper-pagination-bullet-active {
+  background: var(--primary) !important;
+}
+
+.card-hover {
+  transition: border-color 180ms ease-out;
+}
+
+.card-hover:hover {
+  border-color: var(--accent);
+}
+
+.promo-bar {
+  background: var(--primary);
+}
+
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -46,83 +265,6 @@ html {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-}
-
-:focus-visible {
-  outline: 2px solid var(--primary-light);
-  outline-offset: 3px;
-}
-
-input, select, textarea { min-width: 0; }
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 4px;
-}
-
-/* Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-fadeInUp {
-  animation: fadeInUp 0.8s ease-out forwards;
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.6s ease-out forwards;
-}
-
-.animate-slideInRight {
-  animation: slideInRight 0.8s ease-out forwards;
-}
-
-/* Swiper custom styles */
-.swiper-pagination-bullet-active {
-  background: var(--primary) !important;
-}
-
-/* Hover effects */
-.card-hover {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.card-hover:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-}
-
-/* Banner promo bar */
-.promo-bar {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
 }

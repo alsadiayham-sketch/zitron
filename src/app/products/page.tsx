@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { Filter, Sparkles, Star } from "lucide-react";
+import { ChevronDown, Filter, Search } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { filterProducts } from "@/lib/catalog";
 import { useOffers, useProducts } from "@/lib/firebase-hooks";
 import { useCart } from "@/context/CartContext";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
-import { formatCurrency } from "@/lib/admin";
 import { isOfferActive } from "@/lib/offers";
+import ProductCard from "@/components/ProductCard";
 
 const categories = [{ id: "all", label: "الكل" }, ...PRODUCT_CATEGORIES];
 
@@ -58,154 +57,76 @@ function ProductsContent() {
 
   return (
     <>
-      {/* Page Header */}
-      <section className="bg-gradient-to-bl from-[var(--primary)] to-[var(--primary-dark)] py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <h1 className="text-4xl font-bold mb-4">منتجاتنا</h1>
-          <p className="text-white/80 max-w-2xl mx-auto">
-            اكتشف مجموعتنا الكاملة من منتجات العناية بالبشرة المطورة من قبل أطباء الجلدية
-          </p>
+      <section className="border-b border-[var(--border)] bg-[var(--surface-soft)] py-5 sm:py-8">
+        <div className="clinical-container">
+          <p className="clinical-muted text-sm">المنتجات</p>
+          <h1 className="clinical-page-heading mt-2">تسوّق حسب احتياجك</h1>
+          <p className="mt-2 hidden max-w-2xl text-sm leading-7 text-[var(--muted)] sm:block">ابحث، صفِّ النتائج، واقرأ تفاصيل كل منتج قبل إضافته إلى السلة.</p>
         </div>
       </section>
 
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {currentCategoryOffers.length > 0 ? (
-            <div className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-l from-orange-500 via-red-500 to-pink-500 p-[2px] shadow-lg shadow-orange-200/40">
-              <div className="rounded-[calc(2rem-2px)] bg-white px-6 py-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-red-500 shadow-sm">
-                    <Sparkles className="h-4 w-4 text-white" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900">🔥 عروض حصرية على الأقسام</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(activeCategory === "all" ? activeSectionOffers : currentCategoryOffers).map((offer) => {
-                    const sectionLabels = (offer.targetSections ?? [])
-                      .map((s) => categories.find((c) => c.id === s)?.label)
-                      .filter(Boolean)
-                      .join("، ");
-                    return (
-                      <div key={offer.id} className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm">
-                        <span className="font-bold text-orange-700">{offer.title}</span>
-                        {sectionLabels ? <span className="text-orange-500">({sectionLabels})</span> : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+      <section className="py-6 sm:py-8">
+        <div className="clinical-container">
+          <div className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
+            <form action="/products" className="flex min-w-0 gap-2">
+              {Array.from(searchParams.entries()).filter(([key]) => key !== "q").map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
+              <label className="relative min-w-0 flex-1">
+                <span className="sr-only">البحث في المنتجات</span>
+                <Search className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+                <input name="q" defaultValue={searchParams.get("q") ?? ""} key={searchParams.get("q")} placeholder="ابحث بالاسم أو المجموعة" className="clinical-input w-full pr-11" />
+              </label>
+              <button className="clinical-button min-h-11 px-5">بحث</button>
+            </form>
+            <div className="flex gap-2">
+              <label className="relative min-w-0 flex-1 lg:w-52">
+                <span className="sr-only">ترتيب المنتجات</span>
+                <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+                <select aria-label="ترتيب المنتجات" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="clinical-input w-full appearance-none pr-9">
+                  <option value="popular">الأكثر شعبية</option>
+                  <option value="price-asc">السعر: من الأقل</option>
+                  <option value="price-desc">السعر: من الأعلى</option>
+                  <option value="rating">التقييم</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+              </label>
+              {searchParams.size > 0 ? <Link href="/products" className="clinical-button-secondary inline-flex min-h-11 items-center px-4 text-sm">مسح</Link> : null}
             </div>
-          ) : null}
+          </div>
 
-          {/* Filters */}
-          <div className="flex flex-col lg:flex-row gap-6 mb-10">
-            <div className="flex-1 flex flex-wrap gap-2">
+          <details className="group mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 font-semibold text-[var(--foreground)]">
+              <span>تصفية حسب الفئة</span>
+              <ChevronDown className="h-5 w-5 transition-transform duration-200 motion-reduce:transition-none group-open:rotate-180" />
+            </summary>
+            <div className="flex flex-wrap gap-2 border-t border-[var(--border)] px-3 py-3">
               {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    activeCategory === cat.id
-                      ? "bg-[var(--primary)] text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
+                <button key={cat.id} onClick={() => setActiveCategory(cat.id)} aria-pressed={activeCategory === cat.id} className={`min-h-11 rounded-md border px-3 text-sm font-semibold transition-colors duration-200 motion-reduce:transition-none ${activeCategory === cat.id ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--accent)]"}`}>
                   {cat.label}
                 </button>
               ))}
             </div>
-
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                aria-label="ترتيب المنتجات"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-200 rounded-lg py-2 px-4 text-sm focus:outline-none focus:border-[var(--primary)]"
-              >
-                <option value="popular">الأكثر شعبية</option>
-                <option value="price-asc">السعر: من الأقل</option>
-                <option value="price-desc">السعر: من الأعلى</option>
-                <option value="rating">التقييم</option>
-              </select>
-            </div>
-          </div>
-
-          {currentCategoryOffers.length > 0 && activeCategory !== "all" ? (
-            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">
-              ✨ هذا القسم يتضمن عروضاً نشطة — تحقق من التفاصيل أعلاه!
-            </div>
+          </details>
+          {currentCategoryOffers.length > 0 ? (
+            <details className="group mb-4 rounded-lg border border-[var(--border)] bg-[var(--accent-light)]" aria-label="العروض المتاحة">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-[var(--foreground)]">
+                <span>العروض المتاحة ({currentCategoryOffers.length})</span>
+                <ChevronDown className="h-5 w-5 transition-transform duration-200 motion-reduce:transition-none group-open:rotate-180" />
+              </summary>
+              <div className="space-y-2 border-t border-[var(--border)] px-3 py-3">
+                {currentCategoryOffers.map((offer) => {
+                  const sectionLabels = (offer.targetSections ?? []).map((section) => categories.find((category) => category.id === section)?.label).filter(Boolean).join("، ");
+                  return <div key={offer.id} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><p className="font-semibold text-[var(--primary)]">{offer.title}</p>{sectionLabels ? <p className="mt-1 text-[var(--muted)]">{sectionLabels}</p> : null}</div>;
+                })}
+              </div>
+            </details>
           ) : null}
 
-          <form action="/products" className="flex flex-wrap gap-3 mb-6">
-            <input name="q" defaultValue={searchParams.get("q") ?? ""} key={searchParams.get("q")} aria-label="البحث في المنتجات" placeholder="ابحث بالاسم أو المجموعة" className="min-w-0 flex-1 border rounded-lg p-3" />
-            <button className="rounded-lg bg-[var(--primary)] text-white px-5">بحث</button>
-            {searchParams.size > 0 && <Link href="/products" className="p-3 underline">مسح الفلاتر</Link>}
-          </form>
-          {loading ? <p role="status" className="py-12 text-center">جاري تحميل المنتجات...</p> : error ? <p role="alert" className="py-8 text-red-700">{error}</p> : <p className="text-gray-500 text-sm mb-6">{sorted.length} منتج</p>}
+          {loading ? <p role="status" className="clinical-panel py-12 text-center">جاري تحميل المنتجات...</p> : error ? <p role="alert" className="clinical-panel border-red-300 text-red-800">{error}</p> : <p className="mb-4 text-sm text-[var(--muted)]">{sorted.length} منتج</p>}
           {!loading && !error && !sorted.length && <p className="py-12 text-center">لا توجد منتجات مطابقة. جرّب تغيير البحث أو الفلاتر.</p>}
 
-          {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {sorted.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl p-6 card-hover border border-gray-100 group"
-              >
-                <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
-                  <div className="relative aspect-[3/4] mb-4 bg-[var(--secondary)] rounded-xl overflow-hidden flex items-center justify-center">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-4"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    />
-                    {product.badge && (
-                      <span className="absolute top-3 right-3 bg-[var(--accent)] text-white text-xs px-3 py-1 rounded-full">
-                        {product.badge}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-                <div>
-                  <p className="text-xs text-[var(--primary)] font-medium mb-1">
-                    {product.range}
-                  </p>
-                  <Link href={`/product?id=${encodeURIComponent(product.id)}`}>
-                    <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--primary)] transition-colors">
-                      {product.name}
-                    </h3>
-                  </Link>
-                  <div className="flex items-center gap-1 mb-3">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star
-                        key={i}
-                        size={12}
-                        className={
-                          i <= product.rating
-                            ? "fill-[var(--star)] text-[var(--star)]"
-                            : "text-gray-300"
-                        }
-                      />
-                    ))}
-                    <span className="text-xs text-gray-500 mr-1">
-                      ({product.reviews})
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[var(--primary)]">
-                      {formatCurrency(product.price)}
-                    </span>
-                    <button
-                      onClick={() => addItem({ id: product.id, name: product.name, price: product.price, image: product.image, range: product.range })}
-                      className="bg-[var(--primary)] hover:bg-[var(--primary-light)] text-white text-xs py-2 px-4 rounded-full transition-colors"
-                    >
-                      أضف للسلة
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={product.id} product={product} onAdd={(item) => addItem({ id: item.id, name: item.name, price: item.price, image: item.image, range: item.range })} />
             ))}
           </div>
         </div>

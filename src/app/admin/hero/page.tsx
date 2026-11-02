@@ -213,7 +213,7 @@ export default function AdminHeroPage() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {slides.map((slide) => (
-              <div key={slide.id} className="rounded-3xl border border-slate-200 p-4 shadow-sm">
+              <div key={slide.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-slate-100">
                   {slide.type === "image" ? (
                     <Image src={slide.url} alt={slide.title || slide.id} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 40vw" />
@@ -314,7 +314,7 @@ export default function AdminHeroPage() {
           </div>
 
           {form.type === "image" ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <FieldLabel>رفع صورة</FieldLabel>
@@ -328,7 +328,7 @@ export default function AdminHeroPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
               <div className="flex items-center gap-2 font-semibold text-slate-700">
                 <Video className="h-4 w-4" />
                 استخدم رابط فيديو مباشر بصيغة قابلة للتشغيل في المتصفح.
@@ -342,7 +342,7 @@ export default function AdminHeroPage() {
           </div>
 
           {form.url ? (
-            <div className="rounded-3xl border border-slate-200 p-4">
+            <div className="rounded-xl border border-slate-200 p-4">
               <p className="mb-3 text-sm font-semibold text-slate-700">معاينة</p>
               <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-slate-100">
                 {form.type === "image" ? (

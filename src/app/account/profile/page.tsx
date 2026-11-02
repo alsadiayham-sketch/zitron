@@ -232,8 +232,8 @@ export default function ProfilePage() {
 
   if (loading || profileLoading || !user) {
     return (
-      <section className="mx-auto flex min-h-[50vh] max-w-7xl items-center justify-center px-4 py-16" dir="rtl">
-        <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-6 py-4 text-slate-500 shadow-sm">
+      <section className="clinical-container flex min-h-[50vh] items-center justify-center py-12" dir="rtl">
+        <div className="clinical-panel flex items-center gap-3 px-6 py-4 text-[var(--muted)]" role="status">
           <LoaderCircle className="h-5 w-5 animate-spin" />
           جاري تحميل ملفك الشخصي...
         </div>
@@ -242,16 +242,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8" dir="rtl">
-      <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+    <section className="clinical-container py-8 sm:py-10" dir="rtl">
+      <div className="mb-6 flex flex-col gap-4 border-b border-[var(--border)] pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">الملف الشخصي</h1>
-          <p className="mt-2 text-slate-500">إدارة بيانات الحساب والعناوين المحفوظة والطلبات السابقة.</p>
+          <h1 className="clinical-page-heading">الملف الشخصي</h1>
+          <p className="clinical-muted mt-2">إدارة بيانات الحساب والعناوين المحفوظة بأمان.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/account/orders"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            className="clinical-button-secondary inline-flex items-center gap-2"
           >
             <ShoppingBag className="h-4 w-4" />
             سجل الطلبات
@@ -259,7 +259,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => void handleLogout()}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-rose-50 hover:text-rose-700"
           >
             <LogOut className="h-4 w-4" />
             تسجيل الخروج
@@ -267,38 +267,44 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      <nav className="mb-6 flex gap-2 overflow-x-auto rounded-xl border border-[var(--border)] bg-white p-2" aria-label="أقسام الحساب">
+        <Link href="/account/profile" aria-current="page" className="min-w-max rounded-lg bg-[var(--accent-light)] px-4 py-2.5 text-sm font-semibold text-[var(--accent)]">الملف والعناوين</Link>
+        <Link href="/account/orders" className="min-w-max rounded-lg px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--primary)]">سجل الطلبات</Link>
+        <Link href="/track" className="min-w-max rounded-lg px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--primary)]">تتبع طلب</Link>
+      </nav>
+
       {message ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
       {profileError ? <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{profileError}</div> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="clinical-panel p-5 sm:p-6">
             <div className="mb-5 flex items-center gap-2 text-slate-900">
               <UserCircle2 className="h-5 w-5 text-[var(--primary)]" />
               <h2 className="text-xl font-bold">بيانات الحساب</h2>
             </div>
             <form onSubmit={handleSaveDetails} className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">الاسم الكامل</label>
-                <input value={detailsForm.name} onChange={(event) => setDetailsForm({ ...detailsForm, name: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <label htmlFor="profile-name" className="mb-2 block text-sm font-semibold text-slate-700">الاسم الكامل</label>
+                <input id="profile-name" value={detailsForm.name} onChange={(event) => setDetailsForm({ ...detailsForm, name: event.target.value })} className="clinical-input" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">البريد الإلكتروني</label>
-                <input type="email" value={detailsForm.email} readOnly aria-readonly="true" className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 outline-none" />
+                <label htmlFor="profile-email" className="mb-2 block text-sm font-semibold text-slate-700">البريد الإلكتروني</label>
+                <input id="profile-email" type="email" value={detailsForm.email} readOnly aria-readonly="true" className="clinical-input cursor-not-allowed bg-[var(--surface-soft)] text-[var(--muted)]" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">رقم الهاتف</label>
-                <input type="tel" value={detailsForm.phone} onChange={(event) => setDetailsForm({ ...detailsForm, phone: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <label htmlFor="profile-phone" className="mb-2 block text-sm font-semibold text-slate-700">رقم الهاتف</label>
+                <input id="profile-phone" type="tel" value={detailsForm.phone} onChange={(event) => setDetailsForm({ ...detailsForm, phone: event.target.value })} className="clinical-input" />
               </div>
               {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
-              <button type="submit" disabled={savingDetails} className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={savingDetails} className="clinical-button inline-flex items-center gap-2">
                 {savingDetails ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 حفظ البيانات
               </button>
             </form>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="clinical-panel p-5 sm:p-6">
             <div className="mb-5 flex items-center gap-2 text-slate-900">
               <Pencil className="h-5 w-5 text-[var(--primary)]" />
               <h2 className="text-xl font-bold">تغيير كلمة المرور</h2>
@@ -306,18 +312,18 @@ export default function ProfilePage() {
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور الحالية</label>
-                <input type="password" required value={passwordForm.currentPassword} onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <input type="password" required value={passwordForm.currentPassword} onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })} className="clinical-input" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">كلمة المرور الجديدة</label>
-                <input type="password" required minLength={6} value={passwordForm.newPassword} onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <input type="password" required minLength={6} value={passwordForm.newPassword} onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })} className="clinical-input" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">تأكيد كلمة المرور الجديدة</label>
-                <input type="password" required value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <input type="password" required value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })} className="clinical-input" />
               </div>
               {passwordError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{passwordError}</div> : null}
-              <button type="submit" disabled={savingPassword} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={savingPassword} className="clinical-button-secondary inline-flex items-center gap-2">
                 {savingPassword ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 تحديث كلمة المرور
               </button>
@@ -326,7 +332,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="clinical-panel p-5 sm:p-6">
             <div className="mb-5 flex items-center gap-2 text-slate-900">
               <MapPin className="h-5 w-5 text-[var(--primary)]" />
               <h2 className="text-xl font-bold">العناوين المحفوظة</h2>
@@ -334,10 +340,10 @@ export default function ProfilePage() {
 
             <div className="space-y-3">
               {locations.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">لا توجد عناوين محفوظة حتى الآن. أضف عنوانك الأول لتسريع عملية الشراء.</div>
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">لا توجد عناوين محفوظة حتى الآن. أضف عنوانك الأول لتسريع عملية الشراء.</div>
               ) : (
                 locations.map((location) => (
-                  <div key={location.id} className="rounded-3xl border border-slate-200 p-4">
+                  <div key={location.id} className="rounded-xl border border-[var(--border)] p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
@@ -358,23 +364,23 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <form onSubmit={handleSaveLocation} className="mt-6 space-y-4 rounded-3xl bg-slate-50 p-4">
+            <form onSubmit={handleSaveLocation} className="mt-6 space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
               <h3 className="font-bold text-slate-900">{editingLocationId ? "تعديل العنوان" : "إضافة عنوان جديد"}</h3>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">اسم العنوان</label>
-                <input value={locationForm.label} onChange={(event) => setLocationForm({ ...locationForm, label: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" placeholder="مثال: البيت" />
+                <input value={locationForm.label} onChange={(event) => setLocationForm({ ...locationForm, label: event.target.value })} className="clinical-input" placeholder="مثال: البيت" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">المدينة</label>
-                <input value={locationForm.city} onChange={(event) => setLocationForm({ ...locationForm, city: event.target.value })} className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <input value={locationForm.city} onChange={(event) => setLocationForm({ ...locationForm, city: event.target.value })} className="clinical-input" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">العنوان الكامل</label>
-                <textarea value={locationForm.fullAddress} onChange={(event) => setLocationForm({ ...locationForm, fullAddress: event.target.value })} className="min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/10" />
+                <textarea value={locationForm.fullAddress} onChange={(event) => setLocationForm({ ...locationForm, fullAddress: event.target.value })} className="clinical-input min-h-28" />
               </div>
               {locationError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{locationError}</div> : null}
               <div className="flex flex-wrap gap-3">
-                <button type="submit" disabled={savingLocation} className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="submit" disabled={savingLocation} className="clinical-button inline-flex items-center gap-2">
                   {savingLocation ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {editingLocationId ? "حفظ التعديل" : "إضافة العنوان"}
                 </button>

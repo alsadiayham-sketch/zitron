@@ -37,8 +37,8 @@ export default function AccountPage() {
 
   if (loading || user) {
     return (
-      <section className="mx-auto flex min-h-[50vh] max-w-7xl items-center justify-center px-4 py-16" dir="rtl">
-        <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-6 py-4 text-slate-500 shadow-sm">
+      <section className="clinical-container flex min-h-[50vh] items-center justify-center py-12" dir="rtl">
+        <div className="clinical-panel flex items-center gap-3 px-6 py-4 text-[var(--muted)]" role="status">
           <LoaderCircle className="h-5 w-5 animate-spin" />
           جاري التحقق من الحساب...
         </div>
@@ -47,21 +47,21 @@ export default function AccountPage() {
   }
 
   return (
-    <>
-      <section className="bg-gradient-to-bl from-[var(--primary)] to-[var(--primary-dark)] py-16">
-        <div className="mx-auto max-w-7xl px-4 text-center text-white sm:px-6 lg:px-8">
-          <h1 className="mb-4 text-4xl font-bold">حسابي</h1>
+    <div className="bg-[var(--surface-soft)] py-10 sm:py-14" dir="rtl">
+      <section className="clinical-container">
+        <div className="mb-7 text-center">
+          <p className="text-sm font-semibold text-[var(--accent)]">حساب العميل</p>
+          <h1 className="clinical-page-heading mt-2">تسجيل الدخول</h1>
+          <p className="clinical-muted mx-auto mt-2 max-w-md">ادخل إلى ملفك وعناوينك وسجل طلباتك من مكان واحد.</p>
         </div>
-      </section>
 
-      <section className="py-16">
-        <div className="mx-auto max-w-md px-4">
-          <div className="rounded-[2rem] border border-gray-100 bg-white p-8 shadow-sm">
-            <h2 className="mb-6 text-center text-2xl font-bold text-[var(--primary)]">تسجيل الدخول</h2>
+        <div className="mx-auto max-w-md">
+          <div className="clinical-panel p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">البريد الإلكتروني</label>
+                <label htmlFor="account-email" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">البريد الإلكتروني</label>
                 <input
+                  id="account-email"
                   type="email"
                   required
                   value={email}
@@ -70,13 +70,14 @@ export default function AccountPage() {
                     setError("");
                   }}
                   autoComplete="email"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  className="clinical-input"
                   placeholder="example@email.com"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">كلمة المرور</label>
+                <label htmlFor="account-password" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">كلمة المرور</label>
                 <input
+                  id="account-password"
                   type="password"
                   required
                   value={password}
@@ -85,7 +86,7 @@ export default function AccountPage() {
                     setError("");
                   }}
                   autoComplete="current-password"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  className="clinical-input"
                   placeholder="••••••••"
                 />
               </div>
@@ -102,7 +103,7 @@ export default function AccountPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 py-3 font-medium text-white transition-colors hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="clinical-button flex w-full items-center justify-center gap-2"
               >
                 {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                 {submitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
@@ -110,7 +111,7 @@ export default function AccountPage() {
             </form>
 
             <div className="mt-8 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-[var(--muted)]">
                 ليس لديك حساب؟{" "}
                 <Link href="/account/signup" className="font-medium text-[var(--primary)] hover:underline">
                   إنشاء حساب جديد
@@ -120,6 +121,6 @@ export default function AccountPage() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

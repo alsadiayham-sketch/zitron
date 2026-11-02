@@ -115,7 +115,7 @@ export default function AdminMessagesPage() {
         </AdminCard>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.4fr,0.9fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
         <AdminCard>
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>

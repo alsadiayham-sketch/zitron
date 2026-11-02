@@ -28,16 +28,14 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <>
-      <section className="bg-gradient-to-bl from-[var(--primary)] to-[var(--primary-dark)] py-16">
-        <div className="mx-auto max-w-7xl px-4 text-center text-white sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-4">استعادة كلمة المرور</h1>
+    <div className="bg-[var(--surface-soft)] py-10 sm:py-14" dir="rtl">
+      <section className="clinical-container">
+        <div className="mb-7 text-center">
+          <h1 className="clinical-page-heading">استعادة كلمة المرور</h1>
+          <p className="clinical-muted mx-auto mt-2 max-w-md">سنرسل رابطاً آمناً إلى بريدك لإعادة تعيين كلمة المرور.</p>
         </div>
-      </section>
-
-      <section className="py-16">
-        <div className="mx-auto max-w-md px-4">
-          <div className="rounded-[2rem] border border-gray-100 bg-white p-8 shadow-sm">
+        <div className="mx-auto max-w-md">
+          <div className="clinical-panel p-6 sm:p-8">
             {sent ? (
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-500">
@@ -49,7 +47,7 @@ export default function ForgotPasswordPage() {
                 </p>
                 <Link
                   href="/account"
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-8 py-3 font-medium text-white transition-colors hover:bg-[var(--primary-light)]"
+                  className="clinical-button inline-flex items-center gap-2"
                 >
                   <ArrowRight className="h-4 w-4" />
                   العودة لتسجيل الدخول
@@ -57,19 +55,20 @@ export default function ForgotPasswordPage() {
               </div>
             ) : (
               <>
-                <h2 className="mb-2 text-center text-2xl font-bold text-[var(--primary)]">نسيت كلمة المرور؟</h2>
-                <p className="mb-8 text-center text-sm text-gray-600">
+                <h2 className="mb-2 text-center text-xl font-bold text-[var(--foreground)]">أدخل بريد الحساب</h2>
+                <p className="clinical-muted mb-8 text-center text-sm">
                   أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">البريد الإلكتروني *</label>
+                    <label htmlFor="reset-email" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">البريد الإلكتروني *</label>
                     <input
+                      id="reset-email"
                       type="email"
                       required
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                      className="clinical-input"
                       placeholder="example@email.com"
                     />
                   </div>
@@ -81,7 +80,7 @@ export default function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full rounded-full bg-[var(--primary)] px-6 py-3 font-medium text-white transition-colors hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="clinical-button w-full"
                   >
                     {submitting ? "جاري الإرسال..." : "إرسال رابط الاستعادة"}
                   </button>
@@ -96,6 +95,6 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

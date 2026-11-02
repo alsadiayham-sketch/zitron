@@ -85,20 +85,20 @@ export default function AdminSettingsPage() {
             <h2 className="text-lg font-bold text-slate-900">بيانات العلامة التجارية</h2>
             <div className="mt-5 space-y-5">
               <div>
-                <FieldLabel>اسم المتجر بالإنجليزية</FieldLabel>
-                <TextInput value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} />
+                <FieldLabel htmlFor="settings-store-name">اسم المتجر بالإنجليزية</FieldLabel>
+                <TextInput id="settings-store-name" value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>اسم المتجر بالعربية</FieldLabel>
-                <TextInput value={settings.storeNameAr} onChange={(event) => setSettings({ ...settings, storeNameAr: event.target.value })} />
+                <FieldLabel htmlFor="settings-store-name-ar">اسم المتجر بالعربية</FieldLabel>
+                <TextInput id="settings-store-name-ar" value={settings.storeNameAr} onChange={(event) => setSettings({ ...settings, storeNameAr: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>رمز العملة</FieldLabel>
-                <TextInput value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} />
+                <FieldLabel htmlFor="settings-currency">رمز العملة</FieldLabel>
+                <TextInput id="settings-currency" value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>اسم العملة</FieldLabel>
-                <TextInput value={settings.currencyName} onChange={(event) => setSettings({ ...settings, currencyName: event.target.value })} />
+                <FieldLabel htmlFor="settings-currency-name">اسم العملة</FieldLabel>
+                <TextInput id="settings-currency-name" value={settings.currencyName} onChange={(event) => setSettings({ ...settings, currencyName: event.target.value })} />
               </div>
             </div>
           </AdminCard>
@@ -107,20 +107,20 @@ export default function AdminSettingsPage() {
             <h2 className="text-lg font-bold text-slate-900">التواصل والحملات</h2>
             <div className="mt-5 space-y-5">
               <div>
-                <FieldLabel>رقم واتساب</FieldLabel>
-                <TextInput value={settings.whatsappNumber} onChange={(event) => setSettings({ ...settings, whatsappNumber: event.target.value })} />
+                <FieldLabel htmlFor="settings-whatsapp">رقم واتساب</FieldLabel>
+                <TextInput id="settings-whatsapp" value={settings.whatsappNumber} onChange={(event) => setSettings({ ...settings, whatsappNumber: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>رابط إنستغرام</FieldLabel>
-                <TextInput value={settings.instagramLink} onChange={(event) => setSettings({ ...settings, instagramLink: event.target.value })} />
+                <FieldLabel htmlFor="settings-instagram">رابط إنستغرام</FieldLabel>
+                <TextInput id="settings-instagram" value={settings.instagramLink} onChange={(event) => setSettings({ ...settings, instagramLink: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>عنوان البانر الرئيسي</FieldLabel>
-                <TextInput value={settings.heroTitle} onChange={(event) => setSettings({ ...settings, heroTitle: event.target.value })} />
+                <FieldLabel htmlFor="settings-hero-title">عنوان البانر الرئيسي</FieldLabel>
+                <TextInput id="settings-hero-title" value={settings.heroTitle} onChange={(event) => setSettings({ ...settings, heroTitle: event.target.value })} />
               </div>
               <div>
-                <FieldLabel>الوصف الفرعي للبانر</FieldLabel>
-                <TextArea value={settings.heroSubtitle} onChange={(event) => setSettings({ ...settings, heroSubtitle: event.target.value })} />
+                <FieldLabel htmlFor="settings-hero-subtitle">الوصف الفرعي للبانر</FieldLabel>
+                <TextArea id="settings-hero-subtitle" value={settings.heroSubtitle} onChange={(event) => setSettings({ ...settings, heroSubtitle: event.target.value })} />
               </div>
             </div>
           </AdminCard>
@@ -130,20 +130,20 @@ export default function AdminSettingsPage() {
           <h2 className="text-lg font-bold text-slate-900">بيانات التواصل</h2>
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <div>
-              <FieldLabel>العنوان</FieldLabel>
-              <TextInput value={settings.contactAddress} onChange={(event) => setSettings({ ...settings, contactAddress: event.target.value })} />
+              <FieldLabel htmlFor="settings-contact-address">العنوان</FieldLabel>
+              <TextInput id="settings-contact-address" value={settings.contactAddress} onChange={(event) => setSettings({ ...settings, contactAddress: event.target.value })} />
             </div>
             <div>
-              <FieldLabel>رقم الهاتف</FieldLabel>
-              <TextInput value={settings.contactPhone} onChange={(event) => setSettings({ ...settings, contactPhone: event.target.value })} />
+              <FieldLabel htmlFor="settings-contact-phone">رقم الهاتف</FieldLabel>
+              <TextInput id="settings-contact-phone" value={settings.contactPhone} onChange={(event) => setSettings({ ...settings, contactPhone: event.target.value })} />
             </div>
             <div>
-              <FieldLabel>البريد الإلكتروني</FieldLabel>
-              <TextInput type="email" value={settings.contactEmail} onChange={(event) => setSettings({ ...settings, contactEmail: event.target.value })} />
+              <FieldLabel htmlFor="settings-contact-email">البريد الإلكتروني</FieldLabel>
+              <TextInput id="settings-contact-email" type="email" value={settings.contactEmail} onChange={(event) => setSettings({ ...settings, contactEmail: event.target.value })} />
             </div>
             <div>
-              <FieldLabel>ساعات العمل</FieldLabel>
-              <TextInput value={settings.contactWorkHours} onChange={(event) => setSettings({ ...settings, contactWorkHours: event.target.value })} />
+              <FieldLabel htmlFor="settings-contact-hours">ساعات العمل</FieldLabel>
+              <TextInput id="settings-contact-hours" value={settings.contactWorkHours} onChange={(event) => setSettings({ ...settings, contactWorkHours: event.target.value })} />
             </div>
           </div>
         </AdminCard>
@@ -151,8 +151,8 @@ export default function AdminSettingsPage() {
         <AdminCard>
           <h2 className="text-lg font-bold text-slate-900">نبذة عن المتجر</h2>
           <div className="mt-5">
-            <FieldLabel>النص التعريفي</FieldLabel>
-            <TextArea value={settings.aboutText} onChange={(event) => setSettings({ ...settings, aboutText: event.target.value })} className="min-h-44" />
+            <FieldLabel htmlFor="settings-about-text">النص التعريفي</FieldLabel>
+            <TextArea id="settings-about-text" value={settings.aboutText} onChange={(event) => setSettings({ ...settings, aboutText: event.target.value })} className="min-h-44" />
           </div>
         </AdminCard>
 

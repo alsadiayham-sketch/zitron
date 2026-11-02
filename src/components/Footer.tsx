@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin } from "lucide-react";
-import { onSnapshot, setDoc } from "@/lib/store-data";
-import { getDocRef } from "@/lib/store-data";
+import Link from "next/link";
+import { Mail, MapPin, Phone } from "lucide-react";
+import { useEffect, useState } from "react";
 import { DEFAULT_SETTINGS, type AdminSettings } from "@/lib/admin";
+import { getDocRef, onSnapshot, setDoc } from "@/lib/store-data";
 
 export default function Footer() {
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_SETTINGS);
@@ -14,137 +13,51 @@ export default function Footer() {
   const [subscribing, setSubscribing] = useState(false);
   const [subscriptionResult, setSubscriptionResult] = useState("");
 
+  useEffect(() => {
+    return onSnapshot(getDocRef("settings", "config"), (snapshot) => {
+      if (snapshot.exists()) setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
+    });
+  }, []);
+
   async function subscribe(event: React.FormEvent) {
     event.preventDefault();
     if (subscribing) return;
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return;
     setSubscribing(true);
     setSubscriptionResult("");
     try {
-      const normalized = email.trim().toLowerCase();
       await setDoc(getDocRef("newsletter", encodeURIComponent(normalized)), { email: normalized, subscribedAt: new Date().toISOString() });
-      setSubscriptionResult("تم تسجيل اشتراكك بنجاح.");
       setEmail("");
-    } catch (error) {
-      setSubscriptionResult(error instanceof Error ? error.message : "تعذر تسجيل الاشتراك. يرجى المحاولة مجدداً.");
+      setSubscriptionResult("تم تسجيل اشتراكك بنجاح.");
+    } catch (caught) {
+      setSubscriptionResult(caught instanceof Error ? caught.message : "تعذر تسجيل الاشتراك. يرجى المحاولة مجدداً.");
     } finally {
       setSubscribing(false);
     }
   }
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(getDocRef("settings", "config"), (snapshot) => {
-      if (snapshot.exists()) {
-        setSettings({ ...DEFAULT_SETTINGS, ...(snapshot.data() as Partial<AdminSettings>) });
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  return (
-    <footer className="bg-[var(--primary-dark)] text-white">
-      {/* Newsletter */}
-      <div className="bg-[var(--primary)] py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-2xl font-bold mb-2">اشترك في نشرتنا الإخبارية</h3>
-          <p className="text-white/80 mb-6">احصل على آخر الأخبار والعروض الحصرية</p>
-          <form onSubmit={subscribe} className="max-w-md mx-auto flex flex-wrap gap-2">
-            <input
-              type="email"
-              required
-              aria-label="البريد الإلكتروني للنشرة"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="بريدك الإلكتروني"
-              className="min-w-0 flex-1 bg-white rounded-full py-3 px-6 text-gray-800 text-sm focus:outline-none border-2 border-white/40 placeholder:text-gray-600"
-            />
-            <button disabled={subscribing} className="bg-[var(--accent)] hover:bg-[var(--gold)] text-[var(--primary-dark)] font-medium py-3 px-8 rounded-full transition-colors text-sm">
-              {subscribing ? "جاري التسجيل..." : "اشترك"}
-            </button>
-          </form>
-          {subscriptionResult && <p role="status" className="mt-4">{subscriptionResult}</p>}
-        </div>
+  return <footer className="mt-auto border-t border-[var(--border)] bg-[var(--primary-dark)] text-white">
+    <div className="border-b border-white/15">
+      <div className="clinical-container grid gap-5 py-7 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div><h2 className="text-xl font-bold">النشرة البريدية</h2><p className="mt-1 text-sm leading-6 text-white/80">اشترك لتصلك تحديثات المتجر والعروض المتاحة.</p></div>
+        <form onSubmit={subscribe} className="flex min-w-0 flex-col gap-2 sm:flex-row">
+          <label className="min-w-0 sm:w-80"><span className="sr-only">البريد الإلكتروني</span><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="البريد الإلكتروني" className="min-h-11 w-full rounded-md border border-white/30 bg-white px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)]" /></label>
+          <button disabled={subscribing} className="min-h-11 rounded-md bg-[var(--accent)] px-5 text-sm font-bold text-white transition-colors hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-60">{subscribing ? "جاري التسجيل..." : "اشترك"}</button>
+        </form>
+        {subscriptionResult ? <p role="status" className="text-sm text-white/90 lg:col-start-2">{subscriptionResult}</p> : null}
       </div>
+    </div>
+    <div className="clinical-container grid gap-8 py-9 sm:grid-cols-2 lg:grid-cols-4">
+      <div><Image src="/images/zitron-logo.png" alt="ZITRON" width={128} height={44} className="h-10 w-auto" /><p className="mt-4 max-w-xs text-sm leading-7 text-white/75">متجر للعناية بالبشرة يسهّل الوصول إلى معلومات المنتجات والطلب بالدفع عند الاستلام.</p>{/^https?:\/\//.test(settings.instagramLink) ? <a href={settings.instagramLink} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm font-semibold text-white hover:underline">إنستغرام</a> : null}</div>
+      <FooterLinks title="التسوّق" links={[["المنتجات", "/products"], ["المجموعات", "/ranges"], ["حسب نوع البشرة", "/products?skin=sensitive"], ["متابعة الطلب", "/track"]]} />
+      <FooterLinks title="المتجر" links={[["من نحن", "/about"], ["التزاماتنا", "/about#commitments"], ["تواصل معنا", "/contact"], ["الخصوصية وشروط الشراء", "/contact"]]} />
+      <div><h3 className="font-bold">تواصل معنا</h3><ul className="mt-4 space-y-3 text-sm text-white/75"><li className="flex gap-2"><MapPin className="mt-1 h-4 w-4 shrink-0 text-[var(--accent)]" /><span className="whitespace-pre-line">{settings.contactAddress}</span></li><li className="flex gap-2"><Phone className="h-4 w-4 shrink-0 text-[var(--accent)]" /><span dir="ltr">{settings.contactPhone}</span></li><li className="flex gap-2"><Mail className="h-4 w-4 shrink-0 text-[var(--accent)]" /><span>{settings.contactEmail}</span></li></ul></div>
+    </div>
+    <div className="border-t border-white/15"><div className="clinical-container flex flex-col gap-2 py-4 text-xs text-white/65 sm:flex-row sm:items-center sm:justify-between"><span>© {new Date().getFullYear()} ZITRON. جميع الحقوق محفوظة.</span><span>الدفع عند الاستلام</span></div></div>
+  </footer>;
+}
 
-      {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-          {/* Brand */}
-          <div>
-            <Image
-              src="/images/zitron-logo.png"
-              alt="ZITRON"
-              width={130}
-              height={45}
-              className="h-10 w-auto mb-4"
-            />
-            <p className="text-white/70 text-sm leading-relaxed mb-6">
-              أول علامة تجارية للعناية بالبشرة أنشأها أطباء الجلدية، مستوحاة من
-              الآليات البيولوجية للبشرة.
-            </p>
-            <div className="flex gap-4">
-              {/^https?:\/\//.test(settings.instagramLink) && <a href={settings.instagramLink} className="text-white/80 hover:text-white transition-colors" aria-label="انستغرام" target="_blank" rel="noopener noreferrer">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-              </a>}
-            </div>
-          </div>
-
-          {/* Products */}
-          <div>
-            <h4 className="font-bold text-lg mb-4">منتجاتنا</h4>
-            <ul className="space-y-3">
-              <li><Link href="/products?cat=face" className="text-white/70 hover:text-white text-sm transition-colors">العناية بالوجه</Link></li>
-              <li><Link href="/products?cat=body" className="text-white/70 hover:text-white text-sm transition-colors">العناية بالجسم</Link></li>
-              <li><Link href="/products?cat=sun" className="text-white/70 hover:text-white text-sm transition-colors">الحماية من الشمس</Link></li>
-              <li><Link href="/products?cat=hygiene" className="text-white/70 hover:text-white text-sm transition-colors">النظافة</Link></li>
-              <li><Link href="/ranges" className="text-white/70 hover:text-white text-sm transition-colors">مجموعاتنا</Link></li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="font-bold text-lg mb-4">الشركة</h4>
-            <ul className="space-y-3">
-              <li><Link href="/about" className="text-white/70 hover:text-white text-sm transition-colors">من نحن</Link></li>
-              <li><Link href="/about#commitments" className="text-white/70 hover:text-white text-sm transition-colors">التزاماتنا</Link></li>
-              <li><Link href="/about#science" className="text-white/70 hover:text-white text-sm transition-colors">لجنتنا العلمية</Link></li>
-              <li><Link href="/contact" className="text-white/70 hover:text-white text-sm transition-colors">اتصل بنا</Link></li>
-              <li><Link href="/contact" className="text-white/70 hover:text-white text-sm transition-colors">استفسارات الخصوصية</Link></li>
-              <li><Link href="/contact" className="text-white/70 hover:text-white text-sm transition-colors">استفسارات شروط الشراء</Link></li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-bold text-lg mb-4">تواصل معنا</h4>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin size={18} className="text-[var(--accent)] mt-1 flex-shrink-0" />
-                <span className="text-white/70 text-sm">{settings.contactAddress}</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone size={18} className="text-[var(--accent)] flex-shrink-0" />
-                <span className="text-white/70 text-sm" dir="ltr">{settings.contactPhone}</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail size={18} className="text-[var(--accent)] flex-shrink-0" />
-                <span className="text-white/70 text-sm">{settings.contactEmail}</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Bar */}
-      <div className="border-t border-white/10 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-white/50 text-sm">
-            © {new Date().getFullYear()} ZITRON. جميع الحقوق محفوظة.
-          </p>
-          <div className="flex items-center gap-4">
-            <span className="text-white/80 text-sm">الدفع عند الاستلام</span>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
+function FooterLinks({ title, links }: { title: string; links: Array<[string, string]> }) {
+  return <div><h3 className="font-bold">{title}</h3><ul className="mt-4 space-y-3">{links.map(([label, href]) => <li key={href}><Link href={href} className="text-sm text-white/75 transition-colors hover:text-white hover:underline">{label}</Link></li>)}</ul></div>;
 }

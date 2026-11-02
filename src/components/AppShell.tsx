@@ -16,8 +16,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">تجاوز القائمة إلى المحتوى</a>
       <Header />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">{children}</main>
       <Footer />
       <CartSidebar />
     </>
